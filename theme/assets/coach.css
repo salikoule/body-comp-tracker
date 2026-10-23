@@ -1,0 +1,247 @@
+/* Body coach — same surface language as iPac (navy, slate, white cards). */
+body,
+.anvil-root-container {
+  background: #f6f8fb !important;
+  font-family: Montserrat, system-ui, sans-serif;
+  color: #0f172a;
+}
+
+.anvil-role-coach-app {
+  background: #f6f8fb;
+  min-height: 100vh;
+  padding: 28px 20px 48px;
+  box-sizing: border-box;
+}
+
+.anvil-role-coach-sheet {
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.anvil-role-coach-kicker,
+.anvil-role-coach-kicker .label-text {
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.anvil-role-coach-title,
+.anvil-role-coach-title .label-text {
+  color: #1e3a5f !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  margin: 2px 0 4px !important;
+}
+
+.anvil-role-coach-help,
+.anvil-role-coach-help .label-text {
+  color: #64748b !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.45 !important;
+  margin-bottom: 16px !important;
+}
+
+.anvil-role-coach-app .anvil-role-coach-card.column-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: none;
+  text-align: left;
+  padding: 18px 18px 10px;
+  margin: 0 0 14px;
+  overflow: visible;
+}
+
+.anvil-role-coach-section,
+.anvil-role-coach-section .label-text {
+  color: #1f497d !important;
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  margin-bottom: 10px !important;
+}
+
+.anvil-role-coach-label,
+.anvil-role-coach-label .label-text {
+  color: #475569 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  margin: 0 0 4px !important;
+}
+
+.anvil-role-coach-grid.flow-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 16px;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.anvil-role-coach-field {
+  flex: 1 1 200px;
+  min-width: 180px;
+  max-width: 280px;
+  text-align: left;
+}
+
+.anvil-role-coach-app input.form-control,
+.anvil-role-coach-app select.form-control,
+.anvil-role-coach-app .anvil-datepicker input {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  height: 40px;
+  font-family: Montserrat, system-ui, sans-serif;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.anvil-role-coach-app input.form-control:focus,
+.anvil-role-coach-app select.form-control:focus {
+  border-color: #1e3a5f !important;
+  outline: none;
+}
+
+.daterangepicker,
+.daterangepicker .yearselect,
+.daterangepicker .monthselect {
+  font-family: Montserrat, system-ui, sans-serif;
+  z-index: 4000;
+}
+
+.daterangepicker {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+.daterangepicker select.yearselect,
+.daterangepicker select.monthselect {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  height: 28px;
+  font-size: 13px;
+  color: #1e3a5f;
+  background: #fff;
+}
+
+.anvil-role-coach-app .anvil-role-primary-color .anvil-btn,
+.anvil-role-coach-app .anvil-role-primary-color .anvil-btn:hover,
+.anvil-role-coach-app .anvil-role-primary-color .anvil-btn:focus {
+  background: #1e3a5f !important;
+  border: 1px solid #1e3a5f !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 650 !important;
+  font-family: Montserrat, system-ui, sans-serif !important;
+  box-shadow: none !important;
+  padding: 10px 18px !important;
+  min-height: 40px;
+}
+
+.anvil-role-coach-app .anvil-role-secondary-color .anvil-btn,
+.anvil-role-coach-app .anvil-role-secondary-color .anvil-btn:hover {
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #1e3a5f !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 650 !important;
+  box-shadow: none !important;
+}
+
+.anvil-role-coach-note,
+.anvil-role-coach-note .label-text {
+  color: #334155 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.anvil-role-coach-actions.flow-panel {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.coach-frame {
+  display: flex;
+  min-height: 100vh;
+  background: #f6f8fb;
+  align-items: stretch;
+}
+.coach-nav {
+  width: 228px;
+  flex: 0 0 228px;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  padding: 20px 12px 28px;
+  box-sizing: border-box;
+}
+.coach-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 28px 28px 56px;
+  box-sizing: border-box;
+}
+.anvil-role-coach-brand,
+.anvil-role-coach-brand .label-text {
+  color: #1e3a5f !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+.anvil-role-coach-brand-sub,
+.anvil-role-coach-brand-sub .label-text {
+  color: #64748b !important;
+  font-size: 12px !important;
+  margin-bottom: 16px !important;
+}
+.anvil-role-coach-nav-group,
+.anvil-role-coach-nav-group .label-text {
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 14px 8px 4px !important;
+}
+.anvil-role-coach-nav-link .anvil-btn,
+.anvil-role-coach-nav-current .anvil-btn {
+  width: 100%;
+  text-align: left !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #334155 !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
+  font-family: Montserrat, system-ui, sans-serif !important;
+  padding: 8px 10px !important;
+}
+.anvil-role-coach-nav-current .anvil-btn {
+  background: #e8f1fb !important;
+  color: #1e3a5f !important;
+}
+.anvil-role-coach-tracker-head,
+.anvil-role-coach-tracker-head .label-text,
+.anvil-role-coach-tracker-row,
+.anvil-role-coach-tracker-row .label-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
+  font-size: 12px !important;
+  color: #334155 !important;
+}
+.anvil-role-coach-tracker-current,
+.anvil-role-coach-tracker-current .label-text {
+  color: #1e3a5f !important;
+  font-weight: 700 !important;
+}

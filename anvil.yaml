@@ -72,9 +72,6 @@ db_schema:
     server: full
     title: Weight logs
 dependencies:
-- dep_id: dep_craftify_lib
-  resolution_hints: {app_id: ST3GINETRT4QJYDC, name: craftify-library, package_name: craftify_library}
-  version: {branch: master}
 - dep_id: dep_r1gjp7ay80bem
   resolution_hints: {app_id: ST3GINETRT4QJYDC, name: craftify-library, package_name: craftify_library}
   version: {branch: master}
@@ -83,7 +80,9 @@ name: body-comp-tracker
 native_deps:
   head_html: |
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="_/theme/craftify-full-theme.css">
+    <link rel="stylesheet" href="_/theme/coach.css">
 package_name: body_comp_tracker
 runtime_options:
   client_version: '3'

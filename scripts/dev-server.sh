@@ -38,6 +38,7 @@ exec "$VENV/bin/anvil-app-server" \
   --database "jdbc:postgresql://localhost/$DB_NAME?user=$(whoami)" \
   --dep-id ST3GINETRT4QJYDC=craftify_library \
   --dep-id dep_craftify_lib=craftify_library \
+  --dep-id dep_r1gjp7ay80bem=craftify_library \
   --dep-id TGQCF3WT6FVL2EM2=tabulator \
   --dep-id C6ZZPAPN4YYF5NVJ=anvil_extras \
   --dep-id dep_d6bjyrizg8vut=tabulator \
