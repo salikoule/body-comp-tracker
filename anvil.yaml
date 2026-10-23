@@ -1,13 +1,99 @@
 allow_embedding: false
-metadata: {description: Body Composition Tracker, title: Body Composition Tracker}
+db_schema:
+  profiles:
+    client: none
+    columns:
+    - {name: user, target: users, type: link_single}
+    - {name: sex, type: string}
+    - {name: date_of_birth, type: date}
+    - {name: height_cm, type: number}
+    - {name: start_weight_kg, type: number}
+    - {name: waist_cm, type: number}
+    - {name: neck_cm, type: number}
+    - {name: hip_cm, type: number}
+    - {name: training_days, type: number}
+    - {name: daily_steps, type: number}
+    - {name: start_date, type: date}
+    - {name: outcome, type: string}
+    - {name: chain_gain, type: bool}
+    - {name: phase, type: string}
+    - {name: calories, type: number}
+    - {name: protein_g, type: number}
+    - {name: fat_g, type: number}
+    - {name: carbs_g, type: number}
+    - {name: reason, type: string}
+    - {name: bf_percent, type: number}
+    - {name: target_bf_percent, type: number}
+    - {name: target_weight_kg, type: number}
+    - {name: forecast_end, type: date}
+    - {name: phases_json, type: string}
+    - {name: series_json, type: string}
+    - {name: coach_state_json, type: string}
+    server: full
+    title: Profiles
+  users:
+    client: none
+    columns:
+    - {name: email, type: string}
+    - {name: enabled, type: bool}
+    - {name: last_login, type: datetime}
+    - {name: role, type: string}
+    - {name: confirmed_email, type: bool}
+    - {name: signed_up, type: datetime}
+    server: full
+    title: Users
+  week_logs:
+    client: none
+    columns:
+    - {name: user, target: users, type: link_single}
+    - {name: week_index, type: number}
+    - {name: check_in_date, type: date}
+    - {name: avg_weight_kg, type: number}
+    - {name: waist_cm, type: number}
+    - {name: neck_cm, type: number}
+    - {name: bf_percent, type: number}
+    - {name: training_sessions, type: number}
+    - {name: daily_steps, type: number}
+    - {name: training_feel, type: string}
+    - {name: adherence, type: string}
+    - {name: trend_rate_kg, type: number}
+    - {name: status, type: string}
+    - {name: notes, type: string}
+    - {name: next_calories, type: number}
+    - {name: adjustment_reason, type: string}
+    server: full
+    title: Week logs
+  weight_logs:
+    client: none
+    columns:
+    - {name: user, target: users, type: link_single}
+    - {name: logged_on, type: date}
+    - {name: weight_kg, type: number}
+    server: full
+    title: Weight logs
+dependencies:
+- dep_id: dep_craftify_lib
+  resolution_hints: {app_id: ST3GINETRT4QJYDC, name: craftify-library, package_name: craftify_library}
+  version: {branch: master}
+- dep_id: dep_r1gjp7ay80bem
+  resolution_hints: {app_id: ST3GINETRT4QJYDC, name: craftify-library, package_name: craftify_library}
+  version: {branch: master}
+metadata: {description: Body composition coach (Anvil + craftify-library)., title: Body Composition Tracker}
 name: body-comp-tracker
+native_deps:
+  head_html: |
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="_/theme/craftify-full-theme.css">
 package_name: body_comp_tracker
 runtime_options:
   client_version: '3'
-  server_spec: {base: python314}
+  server_spec: {base: python312}
   version: 3
 services:
 - client_config: {enable_v2: true}
   server_config: {}
   source: /runtime/services/tables.yml
-startup: {module: Form1, type: form}
+- client_config: {allow_signup: true, confirm_email: false, enable_automatic_sign_in: true, use_email: true}
+  server_config: {user_table: users}
+  source: /runtime/services/anvil/users.yml
+startup: {module: AppStartup, type: form}

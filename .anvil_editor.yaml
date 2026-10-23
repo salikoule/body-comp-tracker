@@ -1,8 +1,17 @@
 unique_ids:
   assets:
+    craftify-full-theme.css: '1792758249268.8512351353368691'
+    standard-page.html: '1792758249269.6703759030155311'
+    tabulator_styles.css: '1792758249269.5069684925253747'
     theme.css: 3FMVQTRFNYMU2QSIJNW3LC4MCJJP4JFW
   forms:
+    AppStartup: '1792758249264.37253351341151264'
+    CheckInForm: '1792758249266.5200027567218816'
     Form1: IRLO2KPSQINLW2B2XWM4Q3QKK7UHJZCL
+    HomeForm: '1792758249267.8735022572164484'
+    LoginForm: '1792758353707.7318559368424261'
+    ProfileForm: '1792758249268.8585585957797329'
   modules: {}
   scripts: {}
-  server_modules: {}
+  server_modules:
+    BodyCompService: '1792758176528.31844137439105236'

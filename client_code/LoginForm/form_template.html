@@ -1,0 +1,10 @@
+<anvil-form container="HtmlTemplate" prop:html="@theme:standard-page.html">
+    <anvil-component type="ColumnPanel" name="panel" container:slot="default">
+        <anvil-component type="Label" name="title" prop:align="center" prop:bold="true" prop:font_size="22" prop:text="Sign in" container:slot="default" container:full_width_row="true"></anvil-component>
+        <anvil-component type="TextBox" name="email_box" prop:label="Email" prop:placeholder="you@example.com" container:slot="default" container:full_width_row="true"></anvil-component>
+        <anvil-component type="TextBox" name="password_box" prop:hide_text="true" prop:label="Password" container:slot="default" container:full_width_row="true"></anvil-component>
+        <anvil-component type="Button" name="login_btn" prop:align="center" prop:role="primary-color" prop:text="Log in" container:slot="default" container:full_width_row="true"></anvil-component>
+        <anvil-component type="Button" name="signup_btn" prop:align="center" prop:role="secondary-color" prop:text="Create account" container:slot="default" container:full_width_row="true"></anvil-component>
+        <anvil-component type="Label" name="error_label" prop:align="center" prop:foreground="theme:Error" prop:visible="false" container:slot="default" container:full_width_row="true"></anvil-component>
+    </anvil-component>
+</anvil-form>
