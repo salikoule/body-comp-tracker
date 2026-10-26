@@ -2441,6 +2441,17 @@ https://stackoverflow.com/questions/30533055/calculating-shadow-values-for-all-m
   color: #10253f !important;
 }
 
+.anvil-role-login-hero .anvil-role-login-heading,
+.anvil-role-login-hero .anvil-role-login-heading .anvil-label-text {
+  font-size: 42px !important;
+  color: #ffffff !important;
+}
+
+.anvil-role-login-hero .anvil-role-login-subtitle,
+.anvil-role-login-hero .anvil-role-login-subtitle .anvil-label-text {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
 .anvil-role-login-subtitle,
 .anvil-role-login-subtitle .anvil-label-text {
   font-size: 14px !important;
