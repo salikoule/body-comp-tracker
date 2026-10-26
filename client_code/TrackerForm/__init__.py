@@ -225,6 +225,12 @@ class TrackerForm(TrackerFormTemplate):
         table.set_event_handler("row_formatter", self._paint_row)
         table.set_event_handler("table_built", self._on_table_built)
         self._tabulator = table
+        try:
+            from anvil.js.window import setTimeout
+            setTimeout(self._fill_table_height, 0)
+            setTimeout(self._fill_table_height, 200)
+        except Exception:
+            pass
         return table
 
     def _on_table_built(self, **event_args):
@@ -236,14 +242,29 @@ class TrackerForm(TrackerFormTemplate):
         except Exception:
             pass
 
+    def _table_el(self):
+        from anvil.js import get_dom_node
+        node = get_dom_node(self._tabulator)
+        if node is None:
+            return None
+        if getattr(node, "classList", None) and node.classList.contains("tabulator"):
+            return node
+        if hasattr(node, "querySelector"):
+            return node.querySelector(".tabulator") or node
+        return node
+
     def _fill_table_height(self, *args):
         try:
-            from anvil.js import get_dom_node, window
-            node = get_dom_node(self._tabulator)
-            el = node.querySelector(".tabulator") if hasattr(node, "querySelector") else node
+            from anvil.js import window
+            el = self._table_el()
+            if el is None:
+                return
             top = el.getBoundingClientRect().top
-            height = max(280, int(window.innerHeight - top - 16))
-            self._tabulator.height = "%spx" % height
+            height = max(280, int(window.innerHeight - top - 20))
+            el.style.height = "%spx" % height
+            self._tabulator.height = height
+            if hasattr(self._tabulator, "redraw"):
+                self._tabulator.redraw(True)
         except Exception:
             pass
 

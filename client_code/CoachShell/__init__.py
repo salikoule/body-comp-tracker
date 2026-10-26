@@ -5,6 +5,7 @@ import anvil.users
 from craftify_library.Startup import configure as configure_craftify_client
 from craftify_library.CustomComponents.AccountMenu import AccountMenu
 from body_comp_tracker import Layout
+from body_comp_tracker.AppStartup import _open_login
 from body_comp_tracker.CheckInForm import CheckInForm
 from body_comp_tracker.HomeForm import HomeForm
 from body_comp_tracker.PlanForm import PlanForm
@@ -86,7 +87,7 @@ class CoachShell(CoachShellTemplate):
             anvil.users.logout()
         except Exception:
             pass
-        open_form("AppStartup")
+        _open_login()
 
     def _nav_click(self, **event_args):
         self.navigate(event_args["sender"].tag.page)

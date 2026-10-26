@@ -20,14 +20,17 @@ class AppStartup(AppStartupTemplate):
     def __init__(self, **properties):
         self.init_components(**properties)
         self._routed = False
+        self._route()
 
     def form_show(self, **event_args):
         if self._routed:
             return
-        self._routed = True
         self._route()
 
     def _route(self):
+        if self._routed:
+            return
+        self._routed = True
         self.panel.clear()
         try:
             state = anvil.server.call("bodycomp_startup")
