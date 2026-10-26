@@ -3,10 +3,32 @@ from anvil import *
 import anvil.server
 from craftify_library.CustomComponents.ChartCard import ChartCard
 from craftify_library.CustomComponents.EChart import EChart
+from craftify_library.CraftifyUtils.echarts_theme import apply_craftify_echarts_theme
+from body_comp_tracker import Format, Layout
 
 
-def _line(name, weeks, values):
-    return {"name": name, "type": "line", "smooth": True, "connectNulls": False, "data": values, "showSymbol": False}
+def _line(name, values, dashed=False):
+    series = {"name": name, "type": "line", "connectNulls": False, "data": values}
+    if dashed:
+        series["lineStyle"] = {"type": "dashed"}
+    else:
+        series["showSymbol"] = False
+    return series
+
+
+def _chart(title, subtitle, weeks, series, unit, height="300px"):
+    card = ChartCard(title=title, subtitle=subtitle)
+    options = apply_craftify_echarts_theme({
+        "tooltip": {"trigger": "axis"},
+        "legend": {"top": 0, "right": 8},
+        "grid": {"left": 48, "right": 16, "top": 32, "bottom": 28},
+        "xAxis": {"type": "category", "data": weeks},
+        "yAxis": {"type": "value", "scale": True, "name": unit},
+        "dataZoom": [{"type": "inside"}],
+        "series": series,
+    })
+    card.mount(EChart(options=options, height=height))
+    return Layout.flat(card)
 
 
 class ProgressForm(ProgressFormTemplate):
@@ -15,42 +37,53 @@ class ProgressForm(ProgressFormTemplate):
         state = anvil.server.call("bodycomp_get_plan")
         schedule = state.get("schedule") or []
         if not state.get("has_plan") or not schedule:
-            self.body.add_component(Label(text="Save a profile to see progress.", role="coach-note"))
+            self.add_component(
+                Layout.stack(
+                    Layout.page_header("Progress"),
+                    Layout.empty_state("Save your profile to see progress.", "Set up plan", self._open_profile),
+                ),
+                full_width_row=True,
+            )
             return
         weeks = ["W%s" % row.get("week") for row in schedule]
-        self._chart(
-            "Weight (kg)",
+        weight = _chart(
+            "Weight", "Weekly average vs plan target",
             weeks,
             [
-                _line("Target weight", weeks, [row.get("target_weight_kg") for row in schedule]),
-                _line("Actual weight", weeks, [row.get("actual_weight_kg") for row in schedule]),
+                _line("Target", [row.get("target_weight_kg") for row in schedule]),
+                _line("Actual", [row.get("actual_weight_kg") for row in schedule], dashed=True),
             ],
+            "kg",
+            height="320px",
         )
-        self._chart(
-            "Body fat %",
+        body_fat = _chart(
+            "Body fat", "Navy estimate vs plan target",
             weeks,
             [
-                _line("Target BF%", weeks, [row.get("target_bf_percent") for row in schedule]),
-                _line("Actual BF%", weeks, [row.get("bf_percent") for row in schedule]),
+                _line("Target", [row.get("target_bf_percent") for row in schedule]),
+                _line("Actual", [row.get("bf_percent") for row in schedule], dashed=True),
             ],
+            "%",
         )
-        self._chart(
-            "Weekly calories",
+        calories = _chart(
+            "Calories", "Issued each week after the Sunday check-in",
             weeks,
-            [{"name": "Calories", "type": "bar", "data": [row.get("target_calories") for row in schedule]}],
+            [{"name": "kcal", "type": "bar", "data": [row.get("target_calories") for row in schedule]}],
+            "kcal",
+        )
+        header = Layout.page_header(
+            "Progress",
+            eyebrow=Format.eyebrow(state),
+            description="Weight, body fat, and weekly calories across the whole plan. Scroll inside a chart to zoom.",
+            actions=(Layout.button("Weekly tracker", self._open_tracker),),
+        )
+        self.add_component(
+            Layout.stack(header, weight, Layout.grid("repeat(2, minmax(0, 1fr))", body_fat, calories)),
+            full_width_row=True,
         )
 
-    def _chart(self, title, weeks, series):
-        card = ChartCard(title=title, subtitle="Target vs actual")
-        option = {
-            "tooltip": {"trigger": "axis"},
-            "legend": {"top": 0},
-            "grid": {"left": 48, "right": 16, "top": 36, "bottom": 28},
-            "xAxis": {"type": "category", "data": weeks},
-            "yAxis": {"type": "value", "scale": True},
-            "dataZoom": [{"type": "inside"}],
-            "series": series,
-        }
-        card.mount(EChart(options=option, height="320px"))
-        self.body.add_component(card, full_width_row=True)
-        self.body.add_component(Spacer(height=12))
+    def _open_tracker(self, **event_args):
+        Layout.navigate("tracker")
+
+    def _open_profile(self, **event_args):
+        Layout.navigate("profile")

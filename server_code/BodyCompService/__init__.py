@@ -147,6 +147,14 @@ def _backfill_coach_state(profile) -> None:
     )
 
 
+def _adjustment_reason(last_log, profile_reason: str) -> str:
+    """Week logs are SimpleNamespace views — not dicts."""
+    if last_log is None:
+        return profile_reason
+    reason = getattr(last_log, "adjustment_reason", None)
+    return reason if reason else profile_reason
+
+
 def _dump(profile, weights, logs) -> dict:
     phases = json.loads(profile["phases_json"])
     series = json.loads(profile["series_json"])
@@ -164,7 +172,7 @@ def _dump(profile, weights, logs) -> dict:
         "protein_g": current_row["protein_g"] if current_row else profile["protein_g"],
         "fat_g": current_row["fat_g"] if current_row else profile["fat_g"],
         "carbs_g": current_row["carbs_g"] if current_row else profile["carbs_g"],
-        "reason": last_log["adjustment_reason"] if last_log and last_log.get("adjustment_reason") else profile["reason"],
+        "reason": _adjustment_reason(last_log, profile["reason"]),
         "bf_percent": profile.get("bf_percent"),
         "target_bf_percent": profile.get("target_bf_percent"),
         "target_weight_kg": profile.get("target_weight_kg"),
@@ -181,6 +189,10 @@ def _dump(profile, weights, logs) -> dict:
         "daily_steps": profile["daily_steps"],
         "waist_cm": profile["waist_cm"],
         "neck_cm": profile["neck_cm"],
+        "hip_cm": profile.get("hip_cm"),
+        "sex": profile["sex"],
+        "date_of_birth": profile["date_of_birth"],
+        "height_cm": profile["height_cm"],
         "bmr_source": state.get("bmr_source"),
         "bf_milestones": state.get("bf_milestones") or [],
         "current_week": current_week,

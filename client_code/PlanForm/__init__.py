@@ -1,64 +1,83 @@
 from ._anvil_designer import PlanFormTemplate
 from anvil import *
 import anvil.server
+from craftify_library.CustomComponents.KpiCard import KpiCard
+from body_comp_tracker import Format, Layout
 
-PHASE = {"cut": "Cut", "reverse": "Reverse diet", "bulk": "Bulk", "recomp": "Recomp"}
 RULES = (
     "Cut rate defaults to 0.5% of body weight per week.",
-    "Bulk rate defaults to 0.25% per week.",
-    "From week 5, trend compares 3-week rolling averages. Faster loss than 150% of target adds 100 kcal; two slow check-ins subtract 100 kcal.",
+    "Bulk rate defaults to 0.25% of body weight per week.",
+    "From week 5 the trend compares 3-week rolling averages. Losing faster than 150% of target adds 100 kcal; two slow check-ins in a row remove 100 kcal.",
     "Reverse diet: one third of the gap to maintenance for two weeks, then full maintenance.",
-    "Protein 2.2 g/kg on a cut, 1.9 g/kg on a bulk. Fat is 25%. Carbs fill the rest.",
-    "Sunday check-in records waist, neck, sessions, steps, feel, adherence, and notes.",
+    "Protein 2.2 g/kg on a cut, 1.9 g/kg on a bulk. Fat is 25% of calories. Carbs fill the rest.",
+    "Sunday check-in records waist, neck, sessions, steps, training feel, adherence, and notes.",
 )
 
 
 class PlanForm(PlanFormTemplate):
     def __init__(self, **properties):
         self.init_components(**properties)
-        state = anvil.server.call("bodycomp_get_plan")
-        if not state.get("has_plan"):
-            self.body.add_component(Label(text="Save a profile to see the plan.", role="coach-note"))
+        s = anvil.server.call("bodycomp_get_plan")
+        if not s.get("has_plan"):
+            self.add_component(
+                Layout.stack(
+                    Layout.page_header("Plan summary"),
+                    Layout.empty_state("Save your profile to see the plan.", "Set up plan", self._open_profile),
+                ),
+                full_width_row=True,
+            )
             return
-        stats = FlowPanel(role="coach-grid")
-        bmr_label = "RMR (DEXA)" if state.get("bmr_source") == "dexa_rmr" else "BMR"
-        for label, value in (
-            (bmr_label, "%s kcal" % (state.get("bmr") or "—")),
-            ("TDEE", "%s kcal" % (state.get("tdee") or "—")),
-            ("Weekly rate", "%s kg" % (state.get("weekly_rate_kg") or "—")),
-        ):
-            box = ColumnPanel(role="coach-card", spacing="none")
-            box.add_component(Label(text=label, role="coach-label"))
-            box.add_component(Label(text=str(value), role="coach-section"))
-            stats.add_component(box, width=200)
-        self.body.add_component(stats, full_width_row=True)
-        self.body.add_component(Spacer(height=12))
-        for phase in state.get("phases") or []:
-            card = ColumnPanel(role="coach-card", spacing="none")
-            name = PHASE.get(phase.get("name"), phase.get("name") or "")
-            card.add_component(Label(text=name, role="coach-section"))
-            card.add_component(Label(text="%s → %s" % (phase.get("start") or "—", phase.get("end") or "open"), role="coach-note"))
-            card.add_component(Label(text="%s kcal · %s" % (phase.get("calories") or "—", phase.get("summary") or ""), role="coach-note"))
-            self.body.add_component(card, full_width_row=True)
-            self.body.add_component(Spacer(height=8))
-        start = ColumnPanel(role="coach-card", spacing="none")
-        start.add_component(Label(text="Starting point", role="coach-section"))
-        start.add_component(Label(
-            text="Weight %s kg → %s kg. Body fat %s%% → %s%%. Training %s days · %s steps. Forecast %s." % (
-                state.get("start_weight_kg"),
-                ("%.1f" % float(state.get("target_weight_kg"))) if state.get("target_weight_kg") is not None else "—",
-                state.get("bf_percent"),
-                state.get("target_bf_percent"),
-                state.get("training_days"),
-                state.get("daily_steps"),
-                state.get("forecast_end") or "—",
-            ),
-            role="coach-note",
+        header = Layout.page_header(
+            "Plan summary",
+            eyebrow=Format.eyebrow(s),
+            description="Phase dates, energy targets, and the coaching rules that adjust calories each Sunday.",
+            actions=(Layout.button("Edit profile", self._open_profile),),
+        )
+        kpis = Layout.grid(
+            "repeat(auto-fit, minmax(170px, 1fr))",
+            KpiCard(title="RMR (DEXA)" if s.get("bmr_source") == "dexa_rmr" else "BMR",
+                    value=Format.number(s.get("bmr"), 0, "kcal"), subtitle="Energy at rest"),
+            KpiCard(title="TDEE", value=Format.number(s.get("tdee"), 0, "kcal"), subtitle="Maintenance estimate"),
+            KpiCard(title="Weekly rate", value=Format.number(s.get("weekly_rate_kg"), 2, "kg"), subtitle="Planned change per week"),
+            KpiCard(title="Forecast finish", value=Format.date_label(s.get("forecast_end")), subtitle="End of current plan"),
+        )
+        phases = []
+        for phase in s.get("phases") or []:
+            name = phase.get("name") or ""
+            phases.append(Layout.html(
+                '<div class="bc-phase%s"><span class="bc-pill bc-pill-%s">%s</span>'
+                '<p class="bc-phase-dates">%s – %s</p>'
+                '<p class="bc-phase-kcal">%s</p>'
+                '<p class="bc-phase-summary">%s</p></div>'
+                % (
+                    " is-current" if name == s.get("phase") else "",
+                    Layout.esc(name),
+                    Layout.esc(Format.phase(name)),
+                    Layout.esc(Format.date_label(phase.get("start"))),
+                    Layout.esc(Format.date_label(phase.get("end")) if phase.get("end") else "open"),
+                    Layout.esc(Format.number(phase.get("calories"), 0, "kcal")),
+                    Layout.esc(phase.get("summary") or ""),
+                )
+            ))
+        phase_card = Layout.section("Phases", "The current phase is outlined.")
+        Layout.body(phase_card, Layout.grid("repeat(auto-fit, minmax(220px, 1fr))", *phases))
+
+        start = Layout.section("Starting point", "From your profile measurements.")
+        Layout.body(start, Layout.definition_list((
+            ("Weight", "%s → %s" % (Format.number(s.get("start_weight_kg"), 1, "kg"), Format.number(s.get("target_weight_kg"), 1, "kg"))),
+            ("Body fat", "%s → %s" % (Format.percent(s.get("bf_percent")), Format.percent(s.get("target_bf_percent")))),
+            ("Training", "%s days · %s steps" % (s.get("training_days") or "—", Format.number(s.get("daily_steps")))),
+            ("Plan start", Format.date_label(s.get("start_date"))),
+        )))
+
+        rules = Layout.section("Adaptive rules", "How the coach changes calories after each check-in.")
+        Layout.body(rules, Layout.html(
+            '<ul class="bc-rules">%s</ul>' % "".join("<li>%s</li>" % Layout.esc(rule) for rule in RULES)
         ))
-        self.body.add_component(start, full_width_row=True)
-        rules = ColumnPanel(role="coach-card", spacing="none")
-        rules.add_component(Label(text="Adaptive rules", role="coach-section"))
-        for rule in RULES:
-            rules.add_component(Label(text=rule, role="coach-note"))
-        self.body.add_component(Spacer(height=8))
-        self.body.add_component(rules, full_width_row=True)
+        self.add_component(
+            Layout.stack(header, kpis, phase_card, Layout.grid("minmax(0, 1fr) minmax(0, 1.3fr)", start, rules)),
+            full_width_row=True,
+        )
+
+    def _open_profile(self, **event_args):
+        Layout.navigate("profile")

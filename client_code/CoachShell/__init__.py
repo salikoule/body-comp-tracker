@@ -1,6 +1,9 @@
 from ._anvil_designer import CoachShellTemplate
 from anvil import *
+import anvil.server
 from craftify_library.Startup import configure as configure_craftify_client
+from body_comp_tracker import Layout
+from body_comp_tracker.AccountMenu import AccountMenu
 from body_comp_tracker.CheckInForm import CheckInForm
 from body_comp_tracker.HomeForm import HomeForm
 from body_comp_tracker.PlanForm import PlanForm
@@ -8,63 +11,87 @@ from body_comp_tracker.ProfileForm import ProfileForm
 from body_comp_tracker.ProgressForm import ProgressForm
 from body_comp_tracker.TrackerForm import TrackerForm
 
+NAV = (
+    ("Dashboard", "dashboard", "fa:chart-pie"),
+    ("Weekly tracker", "tracker", "fa:table-list"),
+    ("Progress", "progress", "fa:chart-line"),
+    ("Check-in", "checkin", "fa:clipboard-check"),
+    ("Plan summary", "plan", "fa:route"),
+    ("Profile & plan", "profile", "fa:user-pen"),
+)
+
+PAGES = {
+    "dashboard": HomeForm,
+    "tracker": TrackerForm,
+    "progress": ProgressForm,
+    "checkin": CheckInForm,
+    "plan": PlanForm,
+    "profile": ProfileForm,
+}
+
+BRAND = (
+    '<div class="bc-brand">'
+    '<div class="bc-brand-mark">BC</div>'
+    '<div class="bc-brand-text"><strong>Body Comp</strong><span>Cut · reverse · bulk</span></div>'
+    "</div>"
+)
+
 
 class CoachShell(CoachShellTemplate):
-    def __init__(self, page="dashboard", **properties):
+    def __init__(self, page="dashboard", email="", **properties):
         self.init_components(**properties)
         configure_craftify_client()
-        self._page = page or "dashboard"
+        self._links = {}
         self._build_nav()
-        self._show_page()
+        self._build_footer(email)
+        self.navigate(page or "dashboard")
 
     def _build_nav(self):
-        self.nav_panel.clear()
-        self.nav_panel.add_component(Label(text="Body composition", role="coach-brand"))
-        self.nav_panel.add_component(Label(text="Cut, reverse diet, bulk", role="coach-brand-sub"))
-        groups = (
-            ("Track", (("Dashboard", "dashboard", self._open_dashboard), ("Weekly tracker", "tracker", self._open_tracker), ("Progress", "progress", self._open_progress))),
-            ("Plan", (("Plan summary", "plan", self._open_plan), ("Check-in", "checkin", self._open_checkin))),
-            ("You", (("Profile & plan", "profile", self._open_profile),)),
-        )
-        for title, items in groups:
-            self.nav_panel.add_component(Label(text=title, role="coach-nav-group"))
-            for label, page, handler in items:
-                role = "coach-nav-current" if page == self._page else "coach-nav-link"
-                button = Button(text=label, role=role)
-                button.set_event_handler("click", handler)
-                self.nav_panel.add_component(button)
+        self.menu_panel.clear()
+        self.menu_panel.add_component(Layout.html(BRAND), full_width_row=True)
+        for text, page, icon in NAV:
+            link = Link(
+                text=text,
+                icon=icon,
+                foreground="#1e3a5f",
+                align="left",
+                icon_align="left",
+                font_size=13,
+                spacing_above="none",
+                spacing_below="none",
+            )
+            link.tag.page = page
+            link.set_event_handler("click", self._nav_click)
+            self._links[page] = link
+            self.menu_panel.add_component(link)
 
-    def _show_page(self):
-        self.main_panel.clear()
-        page = self._page
-        if page == "tracker":
-            form = TrackerForm()
-        elif page == "progress":
-            form = ProgressForm()
-        elif page == "plan":
-            form = PlanForm()
-        elif page == "checkin":
-            form = CheckInForm()
-        elif page == "profile":
-            form = ProfileForm()
-        else:
-            form = HomeForm()
-        self.main_panel.add_component(form)
+    def _build_footer(self, email):
+        if not email:
+            try:
+                email = anvil.server.call("craftify_current_user_email") or ""
+            except Exception:
+                email = ""
+        self.footer_panel.clear()
+        self.footer_panel.add_component(AccountMenu(email=email or "Local account"), full_width_row=True)
 
-    def _open_dashboard(self, **event_args):
-        open_form("CoachShell", page="dashboard")
+    def _nav_click(self, **event_args):
+        self.navigate(event_args["sender"].tag.page)
 
-    def _open_tracker(self, **event_args):
-        open_form("CoachShell", page="tracker")
+    def _style_links(self, current):
+        for page, link in self._links.items():
+            link.role = "bc-nav-current" if page == current else None
+            link.background = "#e8f1fb" if page == current else ""
+            link.bold = page == current
 
-    def _open_progress(self, **event_args):
-        open_form("CoachShell", page="progress")
-
-    def _open_plan(self, **event_args):
-        open_form("CoachShell", page="plan")
-
-    def _open_checkin(self, **event_args):
-        open_form("CoachShell", page="checkin")
-
-    def _open_profile(self, **event_args):
-        open_form("CoachShell", page="profile")
+    def navigate(self, page):
+        if page not in PAGES:
+            page = "dashboard"
+        self._page = page
+        self._style_links(page)
+        self.content_panel.clear()
+        self.content_panel.add_component(PAGES[page](), full_width_row=True)
+        try:
+            from anvil.js import window
+            window.scrollTo(0, 0)
+        except Exception:
+            pass

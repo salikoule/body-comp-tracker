@@ -1,247 +1,370 @@
-/* Body coach — same surface language as iPac (navy, slate, white cards). */
+/* Body coach on the Craftify standard page. Tokens match iPac (theme.css). */
+
+:root {
+  --bc-navy: #1e3a5f;
+  --bc-navy-deep: #0f2744;
+  --bc-ink: #0f172a;
+  --bc-muted: #64748b;
+  --bc-line: #e2e8f0;
+  --bc-soft: #e8f1fb;
+  --bc-page: #f6f8fb;
+  --bc-ok: #059669;
+  --bc-warn: #d97706;
+  --bc-bad: #dc2626;
+}
+
 body,
-.anvil-root-container {
-  background: #f6f8fb !important;
-  font-family: Montserrat, system-ui, sans-serif;
-  color: #0f172a;
+.nav-holder .content {
+  background: var(--bc-page);
 }
 
-.anvil-role-coach-app {
-  background: #f6f8fb;
-  min-height: 100vh;
-  padding: 28px 20px 48px;
-  box-sizing: border-box;
+/* ---------- Content area ---------- */
+.anvil-role-bc-content {
+  padding: 20px 24px 40px !important;
+  max-width: 1360px;
 }
 
-.anvil-role-coach-sheet {
-  max-width: 880px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.anvil-role-coach-kicker,
-.anvil-role-coach-kicker .label-text {
-  color: #64748b !important;
-  font-size: 11px !important;
-  font-weight: 650 !important;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.anvil-role-coach-title,
-.anvil-role-coach-title .label-text {
-  color: #1e3a5f !important;
-  font-size: 28px !important;
-  font-weight: 700 !important;
-  line-height: 1.2 !important;
-  margin: 2px 0 4px !important;
-}
-
-.anvil-role-coach-help,
-.anvil-role-coach-help .label-text {
-  color: #64748b !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  line-height: 1.45 !important;
-  margin-bottom: 16px !important;
-}
-
-.anvil-role-coach-app .anvil-role-coach-card.column-panel {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: none;
-  text-align: left;
-  padding: 18px 18px 10px;
-  margin: 0 0 14px;
-  overflow: visible;
-}
-
-.anvil-role-coach-section,
-.anvil-role-coach-section .label-text {
-  color: #1f497d !important;
-  font-size: 15px !important;
-  font-weight: 650 !important;
-  margin-bottom: 10px !important;
-}
-
-.anvil-role-coach-label,
-.anvil-role-coach-label .label-text {
-  color: #475569 !important;
-  font-size: 12px !important;
-  font-weight: 650 !important;
-  margin: 0 0 4px !important;
-}
-
-.anvil-role-coach-grid.flow-panel {
+.bc-stack {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px 16px;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 16px;
   width: 100%;
 }
 
-.anvil-role-coach-field {
-  flex: 1 1 200px;
-  min-width: 180px;
-  max-width: 280px;
-  text-align: left;
+.bc-grid {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  align-items: stretch;
+}
+.bc-grid > .bc-grid-item:empty,
+.bc-grid > .bc-grid-item:not(:has(.anvil-component)) { display: none !important; }
+.bc-grid > .bc-grid-item { min-width: 0; display: flex; flex-direction: column; }
+.bc-grid > .bc-grid-item > .anvil-component { flex: 1 1 auto; }
+.bc-grid > .bc-grid-item .ts-page,
+.bc-grid > .bc-grid-item .ts-card,
+.bc-grid > .bc-grid-item .cc-page,
+.bc-grid > .bc-grid-item .cc-card { height: 100%; }
+
+@media (max-width: 900px) {
+  .bc-grid { grid-template-columns: 1fr !important; }
 }
 
-.anvil-role-coach-app input.form-control,
-.anvil-role-coach-app select.form-control,
-.anvil-role-coach-app .anvil-datepicker input {
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-  height: 40px;
+/* ---------- Page header ---------- */
+.bc-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 4px 0 2px;
   font-family: Montserrat, system-ui, sans-serif;
-  font-size: 14px;
-  color: #0f172a;
-  background: #fff;
 }
-
-.anvil-role-coach-app input.form-control:focus,
-.anvil-role-coach-app select.form-control:focus {
-  border-color: #1e3a5f !important;
-  outline: none;
+.bc-page-titles { flex: 1 1 320px; min-width: 0; }
+.bc-eyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bc-muted);
 }
-
-.daterangepicker,
-.daterangepicker .yearselect,
-.daterangepicker .monthselect {
-  font-family: Montserrat, system-ui, sans-serif;
-  z-index: 4000;
+.bc-eyebrow:empty { display: none; }
+.bc-page-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--bc-navy);
+  line-height: 1.2;
 }
-
-.daterangepicker {
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-}
-
-.daterangepicker select.yearselect,
-.daterangepicker select.monthselect {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  height: 28px;
+.bc-page-desc {
+  margin: 6px 0 0;
   font-size: 13px;
-  color: #1e3a5f;
-  background: #fff;
+  line-height: 1.5;
+  color: var(--bc-muted);
+  max-width: 760px;
 }
-
-.anvil-role-coach-app .anvil-role-primary-color .anvil-btn,
-.anvil-role-coach-app .anvil-role-primary-color .anvil-btn:hover,
-.anvil-role-coach-app .anvil-role-primary-color .anvil-btn:focus {
-  background: #1e3a5f !important;
-  border: 1px solid #1e3a5f !important;
-  color: #fff !important;
-  border-radius: 8px !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  font-weight: 650 !important;
-  font-family: Montserrat, system-ui, sans-serif !important;
-  box-shadow: none !important;
-  padding: 10px 18px !important;
-  min-height: 40px;
-}
-
-.anvil-role-coach-app .anvil-role-secondary-color .anvil-btn,
-.anvil-role-coach-app .anvil-role-secondary-color .anvil-btn:hover {
-  background: #fff !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #1e3a5f !important;
-  border-radius: 8px !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  font-weight: 650 !important;
-  box-shadow: none !important;
-}
-
-.anvil-role-coach-note,
-.anvil-role-coach-note .label-text {
-  color: #334155 !important;
-  font-size: 13px !important;
-  line-height: 1.45 !important;
-}
-
-.anvil-role-coach-actions.flow-panel {
+.bc-page-desc:empty { display: none; }
+.bc-page-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  align-items: center;
+}
+.bc-page-actions.is-empty { display: none; }
+
+/* ---------- Section card body content ---------- */
+.ts-body.is-padded > .anvil-component + .anvil-component { margin-top: 12px; }
+.ts-body .tabulator {
+  border: 0 !important;
+  border-radius: 0 !important;
 }
 
-.coach-frame {
-  display: flex;
-  min-height: 100vh;
-  background: #f6f8fb;
-  align-items: stretch;
+.bc-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--bc-muted);
+  font-family: Montserrat, system-ui, sans-serif;
 }
-.coach-nav {
-  width: 228px;
-  flex: 0 0 228px;
-  background: #fff;
-  border-right: 1px solid #e2e8f0;
-  padding: 20px 12px 28px;
-  box-sizing: border-box;
+.bc-note-ink { color: var(--bc-ink); }
+
+.bc-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px 20px;
+  margin: 0;
+  font-family: Montserrat, system-ui, sans-serif;
 }
-.coach-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 28px 28px 56px;
-  box-sizing: border-box;
-}
-.anvil-role-coach-brand,
-.anvil-role-coach-brand .label-text {
-  color: #1e3a5f !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-}
-.anvil-role-coach-brand-sub,
-.anvil-role-coach-brand-sub .label-text {
-  color: #64748b !important;
-  font-size: 12px !important;
-  margin-bottom: 16px !important;
-}
-.anvil-role-coach-nav-group,
-.anvil-role-coach-nav-group .label-text {
-  color: #94a3b8 !important;
-  font-size: 11px !important;
-  font-weight: 650 !important;
-  letter-spacing: 0.06em;
+.bc-dl dt {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  margin: 14px 8px 4px !important;
+  color: var(--bc-muted);
 }
-.anvil-role-coach-nav-link .anvil-btn,
-.anvil-role-coach-nav-current .anvil-btn {
-  width: 100%;
+.bc-dl dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.bc-rules {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #334155;
+  font-family: Montserrat, system-ui, sans-serif;
+}
+.bc-rules li + li { margin-top: 6px; }
+
+/* Body fat progress */
+.bc-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: Montserrat, system-ui, sans-serif;
+}
+.bc-progress-head strong { font-size: 22px; font-weight: 650; color: var(--bc-navy); letter-spacing: -0.02em; }
+.bc-progress-head span { font-size: 12px; color: var(--bc-muted); font-variant-numeric: tabular-nums; }
+.bc-progress-track {
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+.bc-progress-fill { height: 100%; border-radius: 999px; background: var(--bc-navy); }
+
+/* Phase cards */
+.bc-phase {
+  height: 100%;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid var(--bc-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-family: Montserrat, system-ui, sans-serif;
+}
+.bc-phase.is-current { border-color: var(--bc-navy); box-shadow: inset 0 0 0 1px var(--bc-navy); }
+.bc-phase-dates { margin: 10px 0 0; font-size: 14px; font-weight: 600; color: var(--bc-ink); }
+.bc-phase-kcal { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--bc-navy); font-variant-numeric: tabular-nums; }
+.bc-phase-summary { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--bc-muted); }
+
+/* ---------- Form fields ---------- */
+.bc-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px 16px;
+}
+.bc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: Montserrat, system-ui, sans-serif;
+}
+.bc-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+.bc-field-hint {
+  font-size: 11px;
+  color: var(--bc-muted);
+  line-height: 1.4;
+}
+.bc-field-hint:empty { display: none; }
+.bc-field,
+.bc-field-input { width: 100%; }
+.bc-field-input > .anvil-component,
+.bc-field-input .anvil-datepicker,
+.bc-field-input .anvil-dropdown,
+.bc-field-input .anvil-form-control,
+.bc-field-input select,
+.bc-field-input input {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.bc-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- Buttons: theme styles .btn; Anvil v3 renders .anvil-btn ---------- */
+.content .anvil-button > .anvil-btn {
+  font-family: inherit;
+  box-sizing: border-box;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 14px;
+  height: 32px;
+  min-height: 32px;
+  line-height: 30px;
+  letter-spacing: 0;
+  text-transform: none;
+  border: 1px solid var(--bc-line);
+  background: #fff;
+  color: var(--bc-navy);
+  box-shadow: none;
+}
+.content .anvil-button > .anvil-btn:hover {
+  background: #f0f6fc;
+  border-color: #9bb6d3;
+  color: var(--bc-navy);
+}
+.content .anvil-role-primary-color > .anvil-btn {
+  background: var(--bc-navy);
+  border-color: var(--bc-navy);
+  color: #fff;
+}
+.content .anvil-role-primary-color > .anvil-btn:hover {
+  background: var(--bc-navy-deep);
+  border-color: var(--bc-navy-deep);
+  color: #fff;
+}
+.content .ts-body > .anvil-button,
+.content .ts-body .anvil-button.anvil-align-center {
+  display: inline-block !important;
+  width: auto !important;
   text-align: left !important;
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  color: #334155 !important;
-  border-radius: 8px !important;
-  text-transform: none !important;
-  letter-spacing: 0 !important;
-  font-weight: 600 !important;
-  font-family: Montserrat, system-ui, sans-serif !important;
-  padding: 8px 10px !important;
 }
-.anvil-role-coach-nav-current .anvil-btn {
-  background: #e8f1fb !important;
-  color: #1e3a5f !important;
+.content .anvil-checkbox label { font-size: 13px; color: #334155; }
+
+/* ---------- Sidebar ---------- */
+.bc-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 40px 16px 10px;
+  font-family: Montserrat, system-ui, sans-serif;
 }
-.anvil-role-coach-tracker-head,
-.anvil-role-coach-tracker-head .label-text,
-.anvil-role-coach-tracker-row,
-.anvil-role-coach-tracker-row .label-text {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace !important;
-  font-size: 12px !important;
-  color: #334155 !important;
+.bc-brand-mark {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--bc-navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
-.anvil-role-coach-tracker-current,
-.anvil-role-coach-tracker-current .label-text {
-  color: #1e3a5f !important;
-  font-weight: 700 !important;
+.bc-brand-text strong { display: block; font-size: 14px; font-weight: 700; color: var(--bc-navy); line-height: 1.2; }
+.bc-brand-text span { display: block; font-size: 11px; color: var(--bc-muted); margin-top: 2px; }
+.structure.nav-collapsed .bc-brand { padding: 4px 0 14px; justify-content: center; }
+.structure.nav-collapsed .bc-brand-text { display: none; }
+
+.left-nav-footer .anvil-role-sidebar-actions { padding: 8px 10px 12px; }
+.left-nav a.anvil-role-bc-nav-current { background: var(--bc-soft); }
+
+/* ---------- Weekly tracker cells (bootstrap3 Tabulator, iPac compact rows) ---------- */
+.bc-empty { color: #cbd5e1; }
+.bc-week { font-weight: 650; color: var(--bc-navy); font-variant-numeric: tabular-nums; }
+.bc-ico { width: 16px; height: 16px; display: inline-block; vertical-align: -3px; }
+.bc-week-badge {
+  display: inline-flex;
+  min-width: 2.25rem;
+  justify-content: center;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid var(--bc-line);
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bc-navy);
+  font-variant-numeric: tabular-nums;
 }
+.bc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.bc-pill-cut { color: var(--bc-navy); background: var(--bc-soft); }
+.bc-pill-reverse { color: #92400e; background: #fef3c7; }
+.bc-pill-bulk { color: #065f46; background: #d1fae5; }
+.bc-pill-recomp { color: #5b21b6; background: #ede9fe; }
+.bc-pill-muted { color: var(--bc-muted); background: #f1f5f9; }
+.bc-pill-accent { color: var(--bc-navy); background: var(--bc-soft); }
+.bc-pill-warn { color: #92400e; background: #fef3c7; }
+.bc-pill-danger { color: #991b1b; background: #fee2e2; }
+.bc-pill-ok { color: #065f46; background: #d1fae5; }
+.bc-target,
+.bc-val-target { color: var(--bc-muted); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 500; }
+.bc-actual,
+.bc-val-actual { color: var(--bc-ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.bc-delta { font-weight: 650; font-variant-numeric: tabular-nums; }
+.bc-delta-good { color: var(--bc-ok); }
+.bc-delta-bad { color: var(--bc-warn); }
+.bc-kcal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--bc-navy);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.bc-macros { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.bc-macros-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--bc-line);
+  background: #f8fafc;
+  padding: 2px 7px;
+  color: var(--bc-ink);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.bc-macros-chip .bc-ico { color: var(--bc-navy); }
+
+.tabulator-row.bc-week-current,
+.tabulator-row.bc-week-current .tabulator-cell {
+  background-color: #f0f6fc !important;
+}
+.tabulator-row.bc-week-current .tabulator-cell:first-child {
+  box-shadow: inset 3px 0 0 var(--bc-navy);
+}
+.tabulator .tabulator-header .tabulator-col.bc-col-group-actual .tabulator-col-title { color: var(--bc-navy); }
+.tabulator-cell.bc-col-target { background: #f8fafc !important; }
+.tabulator-cell.bc-col-actual { background: #e8f1fb !important; }

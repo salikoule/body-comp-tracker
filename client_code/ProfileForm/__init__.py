@@ -3,88 +3,104 @@ from datetime import date
 from ._anvil_designer import ProfileFormTemplate
 from anvil import *
 import anvil.server
+from body_comp_tracker import Format, Layout
+
+SEX = (("Male", "male"), ("Female", "female"))
+OUTCOME = (("Lose fat", "lose_fat"), ("Gain muscle", "gain_muscle"), ("Recomp", "recomp"))
+
+
+def _text(value):
+    return "" if value is None else ("%g" % value if isinstance(value, float) else str(value))
+
+
+def _as_date(value, fallback=None):
+    if isinstance(value, date):
+        return value
+    if value:
+        try:
+            parts = [int(p) for p in str(value)[:10].split("-")]
+            return date(parts[0], parts[1], parts[2])
+        except (ValueError, IndexError):
+            pass
+    return fallback
 
 
 class ProfileForm(ProfileFormTemplate):
     def __init__(self, **properties):
         self.init_components(**properties)
-        self._build_fields()
+        state = anvil.server.call("bodycomp_get_plan")
+        self._has_plan = bool(state.get("has_plan"))
+        self._build(state if self._has_plan else {})
 
-    def _field(self, caption, component):
-        box = ColumnPanel(role="coach-field", spacing="none")
-        box.add_component(Label(text=caption, role="coach-label"))
-        box.add_component(component)
-        return box
+    def _build(self, s):
+        self.sex = DropDown(items=list(SEX), selected_value=s.get("sex") or "male")
+        self.dob = DatePicker(format="%d %b %Y", placeholder="Choose a date",
+                              min_date=date(1940, 1, 1), max_date=date.today(),
+                              date=_as_date(s.get("date_of_birth")))
+        self.height = TextBox(type="number", placeholder="178", text=_text(s.get("height_cm")))
+        self.weight = TextBox(type="number", placeholder="82", text=_text(s.get("start_weight_kg")))
+        self.waist = TextBox(type="number", placeholder="86", text=_text(s.get("waist_cm")))
+        self.neck = TextBox(type="number", placeholder="38", text=_text(s.get("neck_cm")))
+        self.hip = TextBox(type="number", placeholder="Optional", text=_text(s.get("hip_cm")))
+        self.training = TextBox(type="number", text=_text(s.get("training_days") or 4))
+        self.steps = TextBox(type="number", text=_text(s.get("daily_steps") or 10000))
+        self.start = DatePicker(format="%d %b %Y", min_date=date(2020, 1, 1), max_date=date(2035, 12, 31),
+                                date=_as_date(s.get("start_date"), date.today()))
+        self.outcome = DropDown(items=list(OUTCOME), selected_value=s.get("outcome") or "lose_fat")
+        self.chain = CheckBox(text="After the cut, chain a reverse diet and a bulk", checked=bool(s.get("chain_gain")))
 
-    def _build_fields(self):
-        self.form_panel.clear()
-        self.sex = DropDown(items=["male", "female"])
-        self.dob = DatePicker(
-            format="%d %b %Y",
-            placeholder="Date of birth",
-            min_date=date(1940, 1, 1),
-            max_date=date.today(),
+        header = Layout.page_header(
+            "Profile & plan" if self._has_plan else "Set up your plan",
+            eyebrow=Format.eyebrow(s) if self._has_plan else "Profile",
+            description=(
+                "Saving recalculates the plan from these measurements and clears past check-ins."
+                if self._has_plan
+                else "Enter your measurements once. The coach proposes calories, macros, and phases."
+            ),
         )
-        self.height = TextBox(type="number", placeholder="178")
-        self.weight = TextBox(type="number", placeholder="82")
-        self.waist = TextBox(type="number", placeholder="86")
-        self.neck = TextBox(type="number", placeholder="38")
-        self.hip = TextBox(type="number", placeholder="optional")
-        self.training = TextBox(text="4", type="number")
-        self.steps = TextBox(text="10000", type="number")
-        self.start = DatePicker(
-            format="%d %b %Y",
-            placeholder="Plan start",
-            min_date=date(2020, 1, 1),
-            max_date=date(2035, 12, 31),
-        )
-        self.start.date = date.today()
-        self.outcome = DropDown(items=["Lose fat", "Gain muscle", "Recomp"])
-        self.outcome.selected_value = "Lose fat"
-        self._outcome_map = {
-            "Lose fat": "lose_fat",
-            "Gain muscle": "gain_muscle",
-            "Recomp": "recomp",
-        }
-        self.chain = CheckBox(text="After the cut, chain a bulk phase")
 
-        body = FlowPanel(role="coach-grid")
-        for caption, component in (
-            ("Sex", self.sex),
-            ("Date of birth", self.dob),
-            ("Height (cm)", self.height),
-            ("Weight (kg)", self.weight),
-            ("Waist (cm)", self.waist),
-            ("Neck (cm)", self.neck),
-            ("Hip (cm)", self.hip),
-            ("Training days", self.training),
-            ("Daily steps", self.steps),
-            ("Plan start", self.start),
-            ("Goal", self.outcome),
-        ):
-            body.add_component(self._field(caption, component), width=220)
-        self.form_panel.add_component(Label(text="Body", role="coach-section"), full_width_row=True)
-        self.form_panel.add_component(body, full_width_row=True)
-        self.form_panel.add_component(Spacer(height=8))
-        self.form_panel.add_component(self.chain, full_width_row=True)
-        save = Button(text="Save plan", role="primary-color")
-        save.set_event_handler("click", self._save)
-        actions = FlowPanel(role="coach-actions")
-        actions.add_component(save)
-        self.form_panel.add_component(Spacer(height=12))
-        self.form_panel.add_component(actions, full_width_row=True)
+        about = Layout.section("About you", "Used for BMR and the navy body-fat estimate.")
+        Layout.body(about, Layout.grid(
+            "repeat(3, minmax(0, 1fr))",
+            Layout.field("Sex", self.sex),
+            Layout.field("Date of birth", self.dob),
+            Layout.field("Height (cm)", self.height),
+        ))
+
+        tape = Layout.section("Measurements", "Morning, before food. Tape at the navel and below the larynx.")
+        Layout.body(tape, Layout.grid(
+            "repeat(4, minmax(0, 1fr))",
+            Layout.field("Weight (kg)", self.weight),
+            Layout.field("Waist (cm)", self.waist),
+            Layout.field("Neck (cm)", self.neck),
+            Layout.field("Hip (cm)", self.hip, hint="Only used for the female formula."),
+        ))
+
+        goal = Layout.section("Training and goal")
+        Layout.body(
+            goal,
+            Layout.grid(
+                "repeat(4, minmax(0, 1fr))",
+                Layout.field("Training days per week", self.training),
+                Layout.field("Average daily steps", self.steps),
+                Layout.field("Plan start", self.start),
+                Layout.field("Goal", self.outcome),
+            ),
+            self.chain,
+            Layout.button("Save plan", self._save, primary=True),
+        )
+        self.add_component(Layout.stack(header, about, tape, goal), full_width_row=True)
 
     def _number(self, box, required=True):
         raw = box.text
         text = "" if raw is None else str(raw).strip()
-        if not text or text.lower() == "optional":
+        if not text:
             if required:
                 raise ValueError("Fill in every measurement except hip.")
             return None
         return float(text)
 
     def _save(self, **event_args):
-        outcome_label = self.outcome.selected_value or "Lose fat"
         try:
             payload = {
                 "sex": self.sex.selected_value,
@@ -97,15 +113,21 @@ class ProfileForm(ProfileFormTemplate):
                 "training_days": int(self._number(self.training)),
                 "daily_steps": int(self._number(self.steps)),
                 "start_date": self.start.date,
-                "outcome": self._outcome_map.get(outcome_label, "lose_fat"),
+                "outcome": self.outcome.selected_value or "lose_fat",
                 "chain_gain": self.chain.checked,
             }
             if payload["date_of_birth"] is None or payload["start_date"] is None:
                 raise ValueError("Choose a date of birth and a plan start.")
+        except ValueError as e:
+            Notification(str(e), style="warning").show()
+            return
+        if self._has_plan and not confirm("Saving rebuilds the plan and clears past check-ins. Continue?"):
+            return
+        try:
             state = anvil.server.call("bodycomp_save_plan", payload)
         except Exception as e:
-            alert(f"Could not save plan: {e}")
+            alert(str(e), title="Could not save plan")
             return
-        msg = f"Week 1: {state['calories']} kcal — {state.get('reason', '')}"
-        alert(msg, title="Plan saved")
-        open_form("CoachShell", page="dashboard")
+        Notification("Week 1: %s kcal. %s" % (Format.number(state.get("calories")), state.get("reason") or ""),
+                     title="Plan saved", style="success", timeout=6).show()
+        Layout.navigate("dashboard")

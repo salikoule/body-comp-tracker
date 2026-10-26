@@ -27,7 +27,5 @@ class AppStartup(AppStartupTemplate):
                 full_width_row=True,
             )
             return
-        if not state.get("has_plan"):
-            open_form("CoachShell", page="profile")
-        else:
-            open_form("CoachShell", page="dashboard")
+        page = "dashboard" if state.get("has_plan") else "profile"
+        open_form("CoachShell", page=page, email=state.get("email") or "")
