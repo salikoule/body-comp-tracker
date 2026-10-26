@@ -1,9 +1,10 @@
 from ._anvil_designer import CoachShellTemplate
 from anvil import *
 import anvil.server
+import anvil.users
 from craftify_library.Startup import configure as configure_craftify_client
+from craftify_library.CustomComponents.AccountMenu import AccountMenu
 from body_comp_tracker import Layout
-from body_comp_tracker.AccountMenu import AccountMenu
 from body_comp_tracker.CheckInForm import CheckInForm
 from body_comp_tracker.HomeForm import HomeForm
 from body_comp_tracker.PlanForm import PlanForm
@@ -72,7 +73,20 @@ class CoachShell(CoachShellTemplate):
             except Exception:
                 email = ""
         self.footer_panel.clear()
-        self.footer_panel.add_component(AccountMenu(email=email or "Local account"), full_width_row=True)
+        menu = AccountMenu(email=email or "")
+        menu.set_event_handler("profile_click", self._on_profile)
+        menu.set_event_handler("logout_click", self._on_logout)
+        self.footer_panel.add_component(menu, full_width_row=True)
+
+    def _on_profile(self, **event_args):
+        self.navigate("profile")
+
+    def _on_logout(self, **event_args):
+        try:
+            anvil.users.logout()
+        except Exception:
+            pass
+        open_form("AppStartup")
 
     def _nav_click(self, **event_args):
         self.navigate(event_args["sender"].tag.page)

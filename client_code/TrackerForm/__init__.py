@@ -20,7 +20,7 @@ TABULATOR_OPTIONS = {
     "pagination": False,
     "index": "week",
     "css_class": ["table-striped", "table-bordered"],
-    "layout": "fitDataStretch",
+    "layout": "fitColumns",
     "columnDefaults": {"headerSort": False, "headerHozAlign": "left"},
     "columnHeaderVertAlign": "middle",
     "placeholder": '<div style="color:#64748b;font-size:13px;padding:24px 0;">No weeks yet</div>',

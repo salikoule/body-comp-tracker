@@ -15,25 +15,45 @@
 
 html, body, .anvil-root-container {
   height: 100%;
+  min-height: 100dvh;
 }
 body,
 .nav-holder .content {
   background: var(--bc-page);
 }
-.structure,
-.nav-holder,
-.nav-holder .content {
-  min-height: 100vh;
+.structure {
+  min-height: 100dvh;
   height: 100%;
+}
+.nav-holder {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.nav-holder .content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
 }
 
 /* ---------- Content area ---------- */
 .anvil-role-bc-content {
   padding: 16px 20px 16px !important;
-  max-width: none;
-  width: 100%;
+  max-width: none !important;
+  width: 100% !important;
   box-sizing: border-box;
   min-height: 100%;
+  flex: 1 1 auto;
+}
+.anvil-role-bc-content,
+.anvil-role-bc-content > .anvil-panel-section,
+.anvil-role-bc-content > .anvil-panel-section > .anvil-panel-section-container,
+.anvil-role-bc-content .bc-stack,
+.anvil-role-bc-content .ts-page,
+.anvil-role-bc-content .ts-card,
+.anvil-role-bc-content .tabulator {
+  width: 100% !important;
+  max-width: none !important;
 }
 
 .bc-stack {

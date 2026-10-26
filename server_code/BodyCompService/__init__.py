@@ -389,41 +389,6 @@ def _user_row_by_email(email: str):
     return None
 
 
-def _bootstrap_local_session() -> None:
-    """Create or reuse the single local account (no login UI)."""
-    email = "local@bodycomp.app"
-    password = "local-dev-session"
-    if anvil.users.get_user() is not None:
-        return
-    row = _user_row_by_email(email)
-    if row is not None:
-        row["enabled"] = True
-        row["confirmed_email"] = True
-        row.update()
-        anvil.users.force_login(row, remember=True)
-        if anvil.users.get_user() is not None:
-            return
-    try:
-        anvil.users.signup_with_email(email, password, remember=True)
-    except anvil.users.UserExists:
-        row = _user_row_by_email(email)
-        if row is not None:
-            row["enabled"] = True
-            row["confirmed_email"] = True
-            row.update()
-            anvil.users.force_login(row, remember=True)
-        else:
-            anvil.users.login_with_email(email, password, remember=True)
-    if anvil.users.get_user() is None:
-        raise AuthError("Could not start a local session.")
-
-
-@anvil.server.callable
-def bodycomp_bootstrap_session():
-    _bootstrap_local_session()
-    return anvil.users.get_user() is not None
-
-
 @anvil.server.callable
 def bodycomp_startup():
     """Return plan state for the signed-in user. Does not create a session."""
