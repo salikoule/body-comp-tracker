@@ -14,6 +14,7 @@ def _open_login():
             brand_sub="Cut · reverse · bulk",
             copyright="© Body Comp",
             allow_signup=True,
+            allow_google=True,
         )
     )
 

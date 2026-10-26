@@ -397,6 +397,26 @@ body,
 .tabulator-row.bc-week-current .tabulator-cell:first-child {
   box-shadow: inset 3px 0 0 var(--bc-navy);
 }
+.bc-row-edit {
+  appearance: none;
+  border: 1px solid var(--bc-line);
+  background: #fff;
+  color: var(--bc-navy);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  height: 24px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+.bc-row-edit:hover {
+  background: var(--bc-soft);
+  border-color: #9bb6d3;
+}
+.tabulator-cell.bc-col-edit {
+  text-align: right;
+}
 .tabulator .tabulator-header .tabulator-col.bc-col-group-actual .tabulator-col-title { color: var(--bc-navy); }
 .tabulator-cell.bc-col-target { background: #f8fafc !important; }
 .tabulator-cell.bc-col-actual { background: #e8f1fb !important; }

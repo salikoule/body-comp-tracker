@@ -38,12 +38,19 @@ def _same_user(link, user) -> bool:
         return False
 
 
+def _cell(row, key, default=None):
+    try:
+        return row[key]
+    except Exception:
+        return default
+
+
 def _rows_for_user(table, user, **filters):
     rows = []
     for row in _table_rows(table):
-        if not _same_user(row["user"], user):
+        if not _same_user(_cell(row, "user"), user):
             continue
-        if all(row.get(key) == value for key, value in filters.items()):
+        if all(_cell(row, key) == value for key, value in filters.items()):
             rows.append(row)
     return rows
 
@@ -328,6 +335,8 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
         avg_weight = average_weight_in_week([(w["logged_on"], w["weight_kg"]) for w in weights], week_start)
     existing = _rows_for_user(app_tables.week_logs, user, week_index=week_index)
     log = existing[0] if existing else app_tables.week_logs.add_row(user=user, week_index=week_index)
+    if existing and _cell(log, "check_in_date"):
+        check_in_date = log["check_in_date"]
     log["check_in_date"] = check_in_date
     log["avg_weight_kg"] = avg_weight
     log["waist_cm"] = payload.get("waist_cm")
@@ -342,7 +351,8 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
         bf = navy_bf(profile["sex"], profile["height_cm"], payload["waist_cm"], payload["neck_cm"], profile.get("hip_cm"))
         log["bf_percent"] = round(bf, 1) if bf is not None else None
     log.update()
-    logs = sorted(_rows_for_user(app_tables.week_logs, user), key=lambda r: r["week_index"])
+    log_rows = sorted(_rows_for_user(app_tables.week_logs, user), key=lambda r: r["week_index"])
+    logs = [_log_view(r) for r in log_rows]
     schedule = build_schedule(profile=_row_as_profile(profile), weights=weights, logs=logs)
     avgs = [item["actual_weight_kg"] for item in schedule if item["week"] <= week_index]
     rate = trend_rate_kg(avgs)
@@ -366,15 +376,17 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
     )
     next_week = week_index + 1
     issued = state.setdefault("issued_calories", {})
-    issued[str(next_week)] = adaptation.next_calories
-    log["next_calories"] = adaptation.next_calories
-    log["adjustment_reason"] = adaptation.reason
+    next_key = str(next_week)
+    if next_key not in issued:
+        issued[next_key] = adaptation.next_calories
+        log["next_calories"] = adaptation.next_calories
+        log["adjustment_reason"] = adaptation.reason
+        if next_week == week_index_for(date.today(), profile["start_date"]) + 1:
+            profile["calories"] = adaptation.next_calories
+            profile["reason"] = adaptation.reason
+            profile.update()
     _save_coach_state(profile, state)
     log.update()
-    if next_week == week_index_for(date.today(), profile["start_date"]) + 1:
-        profile["calories"] = adaptation.next_calories
-        profile["reason"] = adaptation.reason
-        profile.update()
     profile, weights, logs = _load_bundle(user)
     return _dump(profile, weights, logs)
 

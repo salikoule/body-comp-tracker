@@ -30,16 +30,22 @@ psql -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep
   || psql -d postgres -c "CREATE DATABASE \"$DB_NAME\";"
 
 cd "$WORKSPACE"
-exec "$VENV/bin/anvil-app-server" \
-  --app body_comp_tracker \
-  --port "$PORT" \
-  --auto-migrate \
-  --origin "http://localhost:$PORT" \
-  --database "jdbc:postgresql://localhost/$DB_NAME?user=$(whoami)" \
-  --dep-id ST3GINETRT4QJYDC=craftify_library \
-  --dep-id dep_craftify_lib=craftify_library \
-  --dep-id dep_r1gjp7ay80bem=craftify_library \
-  --dep-id TGQCF3WT6FVL2EM2=tabulator \
-  --dep-id C6ZZPAPN4YYF5NVJ=anvil_extras \
-  --dep-id dep_d6bjyrizg8vut=tabulator \
+ARGS=(
+  --app body_comp_tracker
+  --port "$PORT"
+  --auto-migrate
+  --origin "http://localhost:$PORT"
+  --database "jdbc:postgresql://localhost/$DB_NAME?user=$(whoami)"
+  --dep-id ST3GINETRT4QJYDC=craftify_library
+  --dep-id dep_craftify_lib=craftify_library
+  --dep-id dep_r1gjp7ay80bem=craftify_library
+  --dep-id TGQCF3WT6FVL2EM2=tabulator
+  --dep-id C6ZZPAPN4YYF5NVJ=anvil_extras
+  --dep-id dep_d6bjyrizg8vut=tabulator
   --dep-id dep_kfkrna97mklbm=anvil_extras
+)
+if [[ -n "${ANVIL_GOOGLE_CLIENT_ID:-}" && -n "${ANVIL_GOOGLE_CLIENT_SECRET:-}" ]]; then
+  ARGS+=(--google-client-id "$ANVIL_GOOGLE_CLIENT_ID")
+  ARGS+=(--google-client-secret "$ANVIL_GOOGLE_CLIENT_SECRET")
+fi
+exec "$VENV/bin/anvil-app-server" "${ARGS[@]}"

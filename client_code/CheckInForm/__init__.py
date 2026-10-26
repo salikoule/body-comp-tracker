@@ -19,12 +19,19 @@ def _optional_number(box):
     return float(text)
 
 
-def _text(value):
-    return "" if value is None else str(value)
+def _text(value, digits=None):
+    if value is None:
+        return ""
+    if digits is None:
+        return str(value)
+    try:
+        return ("%." + str(digits) + "f") % float(value)
+    except (TypeError, ValueError):
+        return str(value)
 
 
 class CheckInForm(CheckInFormTemplate):
-    def __init__(self, **properties):
+    def __init__(self, week=None, **properties):
         self.init_components(**properties)
         state = anvil.server.call("bodycomp_get_plan")
         if not state.get("has_plan"):
@@ -36,12 +43,20 @@ class CheckInForm(CheckInFormTemplate):
                 full_width_row=True,
             )
             return
-        self._week = state.get("current_week") or 1
-        row = Format.current_row(state)
+        current = state.get("current_week") or 1
+        self._week = int(week or current)
+        row = Format.week_row(state, self._week)
+        self._correcting = self._week < current or bool(row.get("check_in_date") or row.get("status") in ("logged", "excluded"))
+        title = "Correct week %s" % self._week if self._correcting else "Sunday check-in"
+        description = (
+            "Change this week's measurements. Issued calorie targets already on later weeks stay as issued."
+            if self._correcting
+            else "Tape measurements, training, and adherence decide next week's calories."
+        )
         header = Layout.page_header(
-            "Sunday check-in",
+            title,
             eyebrow=Format.eyebrow(state),
-            description="Tape measurements, training, and adherence decide next week's calories.",
+            description=description,
             actions=(Layout.button("Weekly tracker", self._open_tracker),),
         )
         self.add_component(
@@ -54,14 +69,15 @@ class CheckInForm(CheckInFormTemplate):
 
     def _form_card(self, state, row):
         latest = state.get("latest_weight_kg")
-        self.avg = TextBox(type="number", placeholder=_text(latest) or "Optional")
-        self.waist = TextBox(type="number", text=_text(row.get("waist_cm") or state.get("waist_cm")))
-        self.neck = TextBox(type="number", text=_text(row.get("neck_cm") or state.get("neck_cm")))
-        self.sessions = TextBox(type="number", text=_text(row.get("training_sessions") or state.get("training_days")))
-        self.steps = TextBox(type="number", text=_text(row.get("daily_steps") or state.get("daily_steps")))
+        self.avg = TextBox(type="number", placeholder=_text(latest, 1) or "Optional", text=_text(row.get("actual_weight_kg"), 1))
+        self.waist = TextBox(type="number", text=_text(row.get("waist_cm") or state.get("waist_cm"), 1))
+        self.neck = TextBox(type="number", text=_text(row.get("neck_cm") or state.get("neck_cm"), 1))
+        self.sessions = TextBox(type="number", text=_text(row.get("training_sessions") or state.get("training_days"), 0))
+        self.steps = TextBox(type="number", text=_text(row.get("daily_steps") or state.get("daily_steps"), 0))
         self.feel = DropDown(items=list(FEEL), selected_value=row.get("training_feel") or "normal")
         self.adherence = DropDown(items=list(ADHERENCE), selected_value=row.get("adherence") or "on_target")
         self.notes = TextArea(placeholder="Sleep, travel, stress…", text=_text(row.get("notes")), height=88)
+        save_label = "Save correction" if self._correcting else "Submit and issue next week"
 
         card = Layout.section("Week %s measurements" % self._week, "Waist and neck are required for the body-fat estimate.")
         grid = Layout.grid(
@@ -78,7 +94,7 @@ class CheckInForm(CheckInFormTemplate):
             card,
             grid,
             Layout.field("Notes", self.notes),
-            Layout.button("Submit and issue next week", self._submit, primary=True),
+            Layout.button(save_label, self._submit, primary=True),
         )
         return card
 
@@ -119,6 +135,11 @@ class CheckInForm(CheckInFormTemplate):
             state = anvil.server.call("bodycomp_check_in", self._week, payload)
         except Exception as e:
             alert(str(e), title="Check-in failed")
+            return
+        if self._correcting:
+            Notification("Week %s updated. Later issued calories were left as they were." % self._week,
+                         title="Week saved", style="success", timeout=6).show()
+            Layout.navigate("tracker")
             return
         Notification(state.get("reason") or "Check-in saved. Next week's calories are issued.",
                      title="Check-in saved", style="success", timeout=6).show()

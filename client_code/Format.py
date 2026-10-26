@@ -52,13 +52,18 @@ def _group(text):
     return sign + ",".join(chunks) + ("." + frac if frac else "")
 
 
-def current_row(state):
-    week = state.get("current_week") or 1
+def week_row(state, week=None):
     rows = state.get("schedule") or []
+    if week is None:
+        week = state.get("current_week") or 1
     for row in rows:
         if row.get("week") == week:
             return row
     return rows[0] if rows else {}
+
+
+def current_row(state):
+    return week_row(state)
 
 
 def eyebrow(state):

@@ -1,5 +1,3 @@
-import anvil.google.auth, anvil.google.drive
-from anvil.google.drive import app_files
 """Exact Lucide 1.60.0 paths from body-comp (Beef, Droplets, Wheat, Flame, …)."""
 
 _ATTRS = (

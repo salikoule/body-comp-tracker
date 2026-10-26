@@ -100,13 +100,14 @@ class CoachShell(CoachShellTemplate):
             link.background = "#e8f1fb" if page == current else ""
             link.bold = page == current
 
-    def navigate(self, page):
+    def navigate(self, page, **page_kwargs):
         if page not in PAGES:
             page = "dashboard"
+            page_kwargs = {}
         self._page = page
         self._style_links(page)
         self.content_panel.clear()
-        self.content_panel.add_component(PAGES[page](), full_width_row=True)
+        self.content_panel.add_component(PAGES[page](**page_kwargs), full_width_row=True)
         try:
             from anvil.js import window
             window.scrollTo(0, 0)

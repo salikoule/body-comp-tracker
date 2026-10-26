@@ -118,9 +118,9 @@ def empty_state(message, action_text="", handler=None):
     return card
 
 
-def navigate(page):
+def navigate(page, **kwargs):
     shell = get_open_form()
     if hasattr(shell, "navigate"):
-        shell.navigate(page)
+        shell.navigate(page, **kwargs)
     else:
         open_form("CoachShell", page=page)

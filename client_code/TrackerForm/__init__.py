@@ -140,6 +140,12 @@ def _notes_fmt(cell, **params):
     return Layout.esc(text) if text else EMPTY
 
 
+def _edit_fmt(cell, **params):
+    if _data(cell).get("status") == "planned":
+        return EMPTY
+    return '<button type="button" class="bc-row-edit">Edit</button>'
+
+
 COLUMNS = [
     {"title": "Week", "field": "weekLabel", "width": 64, "formatter": _week_fmt, "frozen": True},
     {"title": "Week of", "field": "weekDate", "width": 108, "frozen": True},
@@ -167,7 +173,8 @@ COLUMNS = [
         {"title": "Macros", "field": "protein_g", "width": 220, "formatter": _macros_fmt},
     ]},
     {"title": "Status", "field": "status", "width": 100, "formatter": _status_fmt},
-    {"title": "Notes", "field": "notes", "minWidth": 180, "formatter": _notes_fmt},
+    {"title": "Notes", "field": "notes", "minWidth": 140, "formatter": _notes_fmt},
+    {"title": "", "field": "edit", "width": 72, "hozAlign": "right", "formatter": _edit_fmt, "cssClass": "bc-col-edit"},
 ]
 
 
@@ -190,7 +197,7 @@ class TrackerForm(TrackerFormTemplate):
         header = Layout.page_header(
             "Weekly tracker",
             eyebrow=Format.eyebrow(state),
-            description="Every week of the plan. Rows update after morning weigh-ins and Sunday check-ins.",
+            description="Every week of the plan. Edit a started week to correct measurements. Future weeks stay planned.",
             actions=(Layout.button("Sunday check-in", self._open_checkin, primary=True),),
         )
         kpis = Layout.grid(
@@ -205,7 +212,7 @@ class TrackerForm(TrackerFormTemplate):
         )
         table_card = Layout.section(
             "All weeks",
-            "Target columns are muted; actual columns are bold. The current week is highlighted.",
+            "Target columns are muted; actual columns are bold. The current week is highlighted. Edit opens that week's check-in.",
             padded=False,
         )
         Layout.body(table_card, self._table(state))
@@ -225,6 +232,7 @@ class TrackerForm(TrackerFormTemplate):
         table.columns = COLUMNS
         table.data = rows
         table.set_event_handler("row_formatter", self._paint_row)
+        table.set_event_handler("cell_click", self._on_cell_click)
         table.set_event_handler("table_built", self._on_table_built)
         self._tabulator = table
         try:
@@ -285,6 +293,21 @@ class TrackerForm(TrackerFormTemplate):
             self._tabulator.scrollToRow(self._current, "center", False)
         except Exception:
             pass
+
+    def _on_cell_click(self, cell=None, **event_args):
+        cell = cell or event_args.get("cell")
+        if cell is None:
+            return
+        try:
+            field = cell.getField()
+            data = dict(cell.getRow().getData())
+        except Exception:
+            return
+        if field != "edit" or data.get("status") == "planned":
+            return
+        week = data.get("week")
+        if week:
+            Layout.navigate("checkin", week=week)
 
     def _open_checkin(self, **event_args):
         Layout.navigate("checkin")
