@@ -1,7 +1,5 @@
 """Pull DEXA numbers from a report file. Prefer text; use an LLM only when a key is set."""
 
-from __future__ import annotations
-
 import json
 import os
 import re
@@ -77,8 +75,21 @@ def _pdf_text(data: bytes) -> str:
         return ""
 
 
+def openai_api_key():
+    """Hosted Anvil: App Secret. Local: --secret or OPENAI_API_KEY in the environment."""
+    try:
+        import anvil.secrets
+
+        value = anvil.secrets.get_secret("OPENAI_API_KEY")
+        if value:
+            return value
+    except Exception:
+        pass
+    return os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+
+
 def _llm_extract(data: bytes, content_type: str, name: str, text: str) -> dict[str, Any] | None:
-    key = os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+    key = openai_api_key()
     if not key:
         return None
     prompt = (
@@ -87,14 +98,12 @@ def _llm_extract(data: bytes, content_type: str, name: str, text: str) -> dict[s
         + (text[:6000] if text else "The file is an image or an unreadable PDF. Infer only if obvious.")
     )
     try:
-        if os.environ.get("OPENAI_API_KEY"):
-            return _openai_json(prompt, data, content_type, name)
-        return None
+        return _openai_json(prompt, key)
     except Exception:
         return None
 
 
-def _openai_json(prompt: str, data: bytes, content_type: str, name: str) -> dict[str, Any] | None:
+def _openai_json(prompt: str, key: str) -> dict[str, Any] | None:
     import json as _json
     import urllib.request
 
@@ -107,7 +116,7 @@ def _openai_json(prompt: str, data: bytes, content_type: str, name: str) -> dict
         "https://api.openai.com/v1/chat/completions",
         data=_json.dumps(body).encode(),
         headers={
-            "Authorization": "Bearer %s" % os.environ["OPENAI_API_KEY"],
+            "Authorization": "Bearer %s" % key,
             "Content-Type": "application/json",
         },
         method="POST",

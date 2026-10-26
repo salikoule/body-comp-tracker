@@ -118,9 +118,21 @@ def empty_state(message, action_text="", handler=None):
     return card
 
 
+PAGE_PATHS = {
+    "dashboard": "/",
+    "tracker": "/tracker",
+    "progress": "/progress",
+    "checkin": "/checkin",
+    "plan": "/plan",
+    "profile": "/profile",
+}
+
+
 def navigate(page, **kwargs):
-    shell = get_open_form()
-    if hasattr(shell, "navigate"):
-        shell.navigate(page, **kwargs)
-    else:
-        open_form("CoachShell", page=page)
+    from craftify_library.CraftifyRouting import navigate as routing_navigate
+
+    week = kwargs.pop("week", None)
+    if page == "checkin" and week is not None:
+        routing_navigate(path="/checkin/:week", params={"week": week}, form_properties=kwargs)
+        return
+    routing_navigate(path=PAGE_PATHS.get(page) or "/", form_properties=kwargs)

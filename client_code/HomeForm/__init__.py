@@ -13,7 +13,7 @@ from body_comp_tracker import Format, Layout
 
 
 class HomeForm(HomeFormTemplate):
-    def __init__(self, **properties):
+    def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         self._state = anvil.server.call("bodycomp_get_plan")
         self._render()

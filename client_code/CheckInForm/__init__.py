@@ -31,7 +31,15 @@ def _text(value, digits=None):
 
 
 class CheckInForm(CheckInFormTemplate):
-    def __init__(self, week=None, **properties):
+    def __init__(self, week=None, routing_context=None, **properties):
+        if week is None and routing_context is not None:
+            params = getattr(routing_context, "params", None) or {}
+            raw = params.get("week")
+            if raw is not None:
+                try:
+                    week = int(raw)
+                except (TypeError, ValueError):
+                    week = raw
         self.init_components(**properties)
         state = anvil.server.call("bodycomp_get_plan")
         if not state.get("has_plan"):

@@ -28,7 +28,7 @@ def _as_date(value, fallback=None):
 
 
 class ProfileForm(ProfileFormTemplate):
-    def __init__(self, **properties):
+    def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         state = anvil.server.call("bodycomp_get_plan")
         self._has_plan = bool(state.get("has_plan"))

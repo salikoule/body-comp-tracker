@@ -17,7 +17,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ln -sfn "$(basename "$ROOT")" "$WORKSPACE/body_comp_tracker"
 ln -sfn craftify-library "$WORKSPACE/craftify_library"
 
-# Reuse craftify-library dependency bootstrap (GitHub tabulator + anvil_extras).
+# Reuse craftify-library dependency bootstrap (GitHub tabulator + anvil_extras + routing).
 bash "$LIB/scripts/dev-server.sh" &
 BOOT=$!
 sleep 4
@@ -43,9 +43,14 @@ ARGS=(
   --dep-id C6ZZPAPN4YYF5NVJ=anvil_extras
   --dep-id dep_d6bjyrizg8vut=tabulator
   --dep-id dep_kfkrna97mklbm=anvil_extras
+  --dep-id 3PIDO5P3H4VPEMPL=routing
+  --dep-id dep_routing=routing
 )
 if [[ -n "${ANVIL_GOOGLE_CLIENT_ID:-}" && -n "${ANVIL_GOOGLE_CLIENT_SECRET:-}" ]]; then
   ARGS+=(--google-client-id "$ANVIL_GOOGLE_CLIENT_ID")
   ARGS+=(--google-client-secret "$ANVIL_GOOGLE_CLIENT_SECRET")
+fi
+if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+  ARGS+=(--secret "OPENAI_API_KEY=$OPENAI_API_KEY")
 fi
 exec "$VENV/bin/anvil-app-server" "${ARGS[@]}"

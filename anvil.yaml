@@ -60,6 +60,10 @@ db_schema:
     - {name: signed_up, type: datetime}
     - {name: password_hash, type: string}
     - {name: n_password_failures, type: number}
+    - admin_ui: {order: 8, width: 200}
+      client_hidden: true
+      name: remembered_logins
+      type: simpleObject
     server: full
     title: Users
   week_logs:
@@ -95,6 +99,9 @@ dependencies:
 - dep_id: dep_r1gjp7ay80bem
   resolution_hints: {app_id: ST3GINETRT4QJYDC, name: craftify-library, package_name: craftify_library}
   version: {branch: master}
+- dep_id: dep_3cbnzlajrrq4tg
+  resolution_hints: {app_id: 3PIDO5P3H4VPEMPL, name: routing, package_name: routing}
+  version: {version_tag: v0.7.0}
 metadata: {description: Body composition coach (Anvil + craftify-library)., title: Body Composition Tracker}
 name: body-comp-tracker
 native_deps:
@@ -112,14 +119,23 @@ runtime_options:
   client_version: '3'
   server_spec: {base: python312}
   version: 3
+secrets:
+  OPENAI_API_KEY:
+    type: secret
+    value:
+      LFRKA4SPKEL5KGXB: {? '' : hODc+S7FS9Q4ElRJUAtAFCptwT4SkOoAjGVi/tQlQkm+ipBf15M745L+GTSayqLbkF7c5aFe83Jr0ZcAJMGC0laE2mIAIHH9nldVESbFxgd1t46Xzm5X9DyMF+iqh3rC4D+zSV/1jD3P/dWO0HD9oCJgknjqSlRMVMZvJ15fzOwtL3eQClyUAinX7G36apEcjJQ82VeTdxPR71m3WsOt2F2MyV3b7JPFITSsqtsSCp0fhqbubiP/RnKykpGyvzdYeDaAwUQuqjlgKSoro0NXkX6g6jDD0BWlbw2+kR5t655jgcsZDCgWLDwctmWfpvfQN0uK8aGl9A+e5Asxk23RHS0n4WU9n1rj5xflrfPx0kblSLtlPFULWzdRwroN1VqEJlxItKIlp6pXk/TBXgi1iyQSgg==}
 services:
 - client_config: {enable_v2: true}
   server_config: {}
   source: /runtime/services/tables.yml
-- client_config: {allow_signup: true, confirm_email: false, enable_automatic_sign_in: true, use_email: true, use_google: true}
+- client_config: {allow_remember_me: true, allow_signup: true, confirm_email: false, enable_automatic_sign_in: true, remember_me_days: 30, use_email: true, use_google: true}
   server_config: {user_table: users}
   source: /runtime/services/anvil/users.yml
 - client_config: {}
   server_config: {}
   source: /runtime/services/google.yml
-startup: {module: AppStartup, type: form}
+- client_config: {}
+  server_config: {}
+  source: /runtime/services/anvil/secrets.yml
+startup: {module: startup, type: module}
+startup_form: null

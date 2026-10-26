@@ -1,7 +1,5 @@
 """Plan updates must keep issued calories and logged weeks."""
 
-from __future__ import annotations
-
 from datetime import date
 
 

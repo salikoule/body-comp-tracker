@@ -34,7 +34,7 @@ def _chart(title, subtitle, weeks, series, unit, height="300px"):
 
 
 class ProgressForm(ProgressFormTemplate):
-    def __init__(self, **properties):
+    def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         state = anvil.server.call("bodycomp_get_plan")
         schedule = state.get("schedule") or []

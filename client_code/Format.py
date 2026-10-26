@@ -2,7 +2,7 @@ import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 """Display formatting shared by every page."""
 
-PHASE = {"cut": "Cut", "reverse": "Reverse diet", "bulk": "Bulk", "recomp": "Recomp"}
+PHASE = {"cut": "Cut", "reverse": "Reverse", "bulk": "Bulk", "recomp": "Recomp"}
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 

@@ -19,7 +19,8 @@ class LoginForm(LoginFormTemplate):
             self.error_label.text = str(e)
             self.error_label.visible = True
             return
-        open_form("AppStartup")
+        from craftify_library.CraftifyRouting import navigate
+        navigate(path="/")
 
     def signup_btn_click(self, **event_args):
         self.error_label.visible = False
@@ -29,4 +30,5 @@ class LoginForm(LoginFormTemplate):
             self.error_label.text = str(e)
             self.error_label.visible = True
             return
-        open_form("AppStartup")
+        from craftify_library.CraftifyRouting import navigate
+        navigate(path="/")

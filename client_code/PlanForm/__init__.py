@@ -17,7 +17,7 @@ RULES = (
 
 
 class PlanForm(PlanFormTemplate):
-    def __init__(self, **properties):
+    def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         s = anvil.server.call("bodycomp_get_plan")
         if not s.get("has_plan"):

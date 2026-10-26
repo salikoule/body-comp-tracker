@@ -152,28 +152,28 @@ def _edit_fmt(cell, **params):
 COLUMNS = [
     {"title": "Week", "field": "weekLabel", "width": 64, "formatter": _week_fmt, "frozen": True},
     {"title": "Week of", "field": "weekDate", "width": 108, "frozen": True},
-    {"title": "Phase", "field": "phase", "width": 148, "formatter": _phase_fmt},
-    {"title": "Weight (kg)", "columns": [
-        {"title": "Target", "field": "target_weight_kg", "width": 88, "hozAlign": "right", "formatter": _target_kg, "cssClass": "bc-col-target"},
-        {"title": "Actual", "field": "actual_weight_kg", "width": 92, "hozAlign": "right", "formatter": _actual_kg, "cssClass": "bc-col-actual"},
-        {"title": "Δ", "field": "weight_delta_kg", "width": 68, "hozAlign": "right", "formatter": _delta_fmt, "cssClass": "bc-col-actual"},
+    {"title": "Phase", "field": "phase", "hozAlign": "center", "width": 100, "formatter": _phase_fmt},
+    {"title": "Weight (kg)", "headerHozAlign": "center", "columns": [
+        {"title": "Target", "field": "target_weight_kg", "width": 75, "hozAlign": "right", "formatter": _target_kg, "cssClass": "bc-col-target"},
+        {"title": "Actual", "field": "actual_weight_kg", "width": 75, "hozAlign": "right", "formatter": _actual_kg, "cssClass": "bc-col-actual"},
+        {"title": "Δ", "field": "weight_delta_kg", "width": 50, "hozAlign": "right", "formatter": _delta_fmt, "cssClass": "bc-col-actual"},
     ]},
-    {"title": "Tape (cm)", "columns": [
+    {"title": "Tape (cm)", "headerHozAlign": "center", "columns": [
         {"title": "Waist", "field": "waist_cm", "width": 70, "hozAlign": "right", "formatter": _tape_fmt},
         {"title": "Neck", "field": "neck_cm", "width": 66, "hozAlign": "right", "formatter": _tape_fmt},
     ]},
-    {"title": "Body fat", "columns": [
-        {"title": "Target", "field": "target_bf_percent", "width": 80, "hozAlign": "right", "formatter": _target_pct, "cssClass": "bc-col-target"},
-        {"title": "Actual", "field": "bf_percent", "width": 80, "hozAlign": "right", "formatter": _actual_pct, "cssClass": "bc-col-actual"},
-        {"title": "Δ", "field": "bf_delta", "width": 68, "hozAlign": "right", "formatter": _delta_fmt, "cssClass": "bc-col-actual"},
+    {"title": "Body fat", "headerHozAlign": "center", "columns": [
+        {"title": "Target", "field": "target_bf_percent", "width": 75, "hozAlign": "right", "formatter": _target_pct, "cssClass": "bc-col-target"},
+        {"title": "Actual", "field": "bf_percent", "width": 75, "hozAlign": "right", "formatter": _actual_pct, "cssClass": "bc-col-actual"},
+        {"title": "Δ", "field": "bf_delta", "width": 50, "hozAlign": "right", "formatter": _delta_fmt, "cssClass": "bc-col-actual"},
     ]},
-    {"title": "Training", "columns": [
+    {"title": "Training", "headerHozAlign": "center", "columns": [
         {"title": "Sessions", "field": "training_sessions", "width": 78, "hozAlign": "right", "formatter": _plain_fmt},
         {"title": "Steps", "field": "daily_steps", "width": 80, "hozAlign": "right", "formatter": _plain_fmt},
     ]},
-    {"title": "Nutrition", "columns": [
-        {"title": "kcal", "field": "target_calories", "width": 108, "hozAlign": "right", "formatter": _kcal_fmt, "cssClass": "bc-col-target"},
-        {"title": "Macros", "field": "protein_g", "width": 220, "formatter": _macros_fmt},
+    {"title": "Nutrition", "headerHozAlign": "center", "columns": [
+        {"title": "kcal", "field": "target_calories", "width": 80, "hozAlign": "right", "formatter": _kcal_fmt, "cssClass": "bc-col-target"},
+        {"title": "Macros", "headerHozAlign": "center", "field": "protein_g", "width": 220, "formatter": _macros_fmt},
     ]},
     {"title": "Status", "field": "status", "width": 100, "formatter": _status_fmt},
     {"title": "Notes", "field": "notes", "minWidth": 140, "formatter": _notes_fmt},
@@ -182,7 +182,7 @@ COLUMNS = [
 
 
 class TrackerForm(TrackerFormTemplate):
-    def __init__(self, **properties):
+    def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         configure_craftify_client()
         state = anvil.server.call("bodycomp_get_plan")
