@@ -1,6 +1,8 @@
 """Page building blocks on top of the Craftify standard page (iPac patterns)."""
 
 from anvil import *
+import anvil.google.auth, anvil.google.drive
+from anvil.google.drive import app_files
 
 GAP_NONE = {"spacing_above": "none", "spacing_below": "none"}
 

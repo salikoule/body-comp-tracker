@@ -101,4 +101,7 @@ services:
 - client_config: {allow_signup: true, confirm_email: false, enable_automatic_sign_in: true, use_email: true}
   server_config: {user_table: users}
   source: /runtime/services/anvil/users.yml
+- client_config: {}
+  server_config: {}
+  source: /runtime/services/google.yml
 startup: {module: AppStartup, type: form}
