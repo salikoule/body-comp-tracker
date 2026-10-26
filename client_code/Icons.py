@@ -1,3 +1,4 @@
+from routing import router
 """Exact Lucide 1.60.0 paths from body-comp (Beef, Droplets, Wheat, Flame, …)."""
 
 _ATTRS = (

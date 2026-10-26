@@ -1,6 +1,7 @@
 """Page building blocks on top of the Craftify standard page (iPac patterns)."""
 
 from anvil import *
+from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 

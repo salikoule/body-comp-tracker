@@ -2,6 +2,7 @@ from datetime import date
 
 from ._anvil_designer import HomeFormTemplate
 from anvil import *
+from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server

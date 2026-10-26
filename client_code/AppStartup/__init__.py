@@ -1,5 +1,6 @@
 from ._anvil_designer import AppStartupTemplate
 from anvil import *
+from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 from craftify_library.CraftifyLoginForm import CraftifyLoginForm
