@@ -53,7 +53,10 @@ def _num(value, digits):
 
 
 def _week_fmt(cell, **params):
-    return '<span class="bc-week-badge">%s</span>' % Layout.esc(_value(cell) or "")
+    label = '<span class="bc-week-badge">%s</span>' % Layout.esc(_value(cell) or "")
+    if _data(cell).get("has_dexa"):
+        return '%s<span class="bc-dexa-mark">DEXA</span>' % label
+    return label
 
 
 def _phase_fmt(cell, **params):
@@ -193,6 +196,7 @@ class TrackerForm(TrackerFormTemplate):
             )
             return
         self._current = state.get("current_week") or 1
+        self._dexa_weeks = {int(week) for week in (state.get("dexa_weeks") or []) if week}
         row = Format.current_row(state)
         header = Layout.page_header(
             "Weekly tracker",
@@ -224,6 +228,7 @@ class TrackerForm(TrackerFormTemplate):
             item = dict(row)
             item["weekLabel"] = "W%s" % row.get("week")
             item["weekDate"] = Format.date_label(row.get("week_start"))
+            item["has_dexa"] = row.get("week") in self._dexa_weeks
             rows.append(item)
         table = Tabulator()
         options = dict(TABULATOR_OPTIONS)

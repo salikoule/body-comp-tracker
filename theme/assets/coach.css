@@ -339,6 +339,17 @@ body,
   color: var(--bc-navy);
   font-variant-numeric: tabular-nums;
 }
+.bc-dexa-mark {
+  display: inline-flex;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
 .bc-pill {
   display: inline-flex;
   align-items: center;

@@ -64,10 +64,17 @@ class PlanForm(PlanFormTemplate):
         phase_card = Layout.section("Phases", "The current phase is outlined.")
         Layout.body(phase_card, Layout.grid("repeat(auto-fit, minmax(220px, 1fr))", *phases))
 
-        start = Layout.section("Starting point", "From your profile measurements.")
+        start = Layout.section("Starting point", "From your profile measurements and DEXA if you have one.")
         Layout.body(start, Layout.definition_list((
             ("Weight", "%s → %s" % (Format.number(s.get("start_weight_kg"), 1, "kg"), Format.number(s.get("target_weight_kg"), 1, "kg"))),
             ("Body fat", "%s → %s" % (Format.percent(s.get("bf_percent")), Format.percent(s.get("target_bf_percent")))),
+            ("DEXA", "%s BF · FFM %s · RMR %s · %s" % (
+                Format.percent(s.get("dexa_bf_percent")),
+                Format.number(s.get("dexa_ffm_kg"), 1, "kg"),
+                Format.number(s.get("dexa_rmr_kcal"), 0, "kcal"),
+                Format.date_label(s.get("dexa_measured_on")),
+            ) if s.get("dexa_bf_percent") is not None else "Not entered"),
+            ("Tape vs DEXA", "Weekly tape shifted %+s pts" % s.get("navy_dexa_offset") if s.get("navy_dexa_offset") is not None else "Navy tape only"),
             ("Training", "%s days · %s steps" % (s.get("training_days") or "—", Format.number(s.get("daily_steps")))),
             ("Plan start", Format.date_label(s.get("start_date"))),
         )))

@@ -69,7 +69,12 @@ class HomeForm(HomeFormTemplate):
         pct = 0
         if start is not None and target is not None and start > target and current is not None:
             pct = max(0, min(100, int(round((start - current) / (start - target) * 100))))
-        card = Layout.section("Body fat toward target", "Navy-method estimate from Sunday tape measurements.")
+        card = Layout.section(
+            "Body fat toward target",
+            "DEXA sets the plan baseline. Sunday tape is shifted onto that scale."
+            if s.get("navy_dexa_offset") is not None
+            else "Navy-method estimate from Sunday tape measurements.",
+        )
         Layout.body(
             card,
             Layout.html(

@@ -75,6 +75,28 @@ def test_build_schedule_with_namespace_logs():
     assert adjustment_reason(logs[-1], "fallback") == "Trend slow"
 
 
+def test_plan_save_keeps_issued_calories():
+    sys.path.insert(0, str(ROOT / "server_code"))
+    from plan_history import merge_issued_calories, dexa_weeks
+    from BodyCoach.schedule import week_index_for
+
+    issued = merge_issued_calories({"1": 2000, "2": 1900}, 1800)
+    assert issued == {"1": 2000, "2": 1900}
+    assert merge_issued_calories({}, 2100) == {"1": 2100}
+    assert dexa_weeks(date(2026, 10, 22), date(2026, 10, 19), week_index_for) == [1]
+
+
+def test_dexa_text_extracts_core_metrics():
+    sys.path.insert(0, str(ROOT / "server_code"))
+    from DexaExtract import extract_from_text
+
+    parsed = extract_from_text("DEXA 2026-10-20 Body fat 28.8% Fat-free mass 57.7 kg RMR 1550 kcal")
+    assert parsed["dexa_bf_percent"] == 28.8
+    assert parsed["dexa_ffm_kg"] == 57.7
+    assert parsed["dexa_rmr_kcal"] == 1550
+    assert parsed["dexa_measured_on"] == "2026-10-20"
+
+
 def test_tracker_icons_are_lucide_from_body_comp():
     for name in ("flame", "protein", "fat", "carbs", "down", "up", "reverse"):
         assert ICON[name].startswith("<svg")

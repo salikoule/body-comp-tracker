@@ -1,5 +1,19 @@
 allow_embedding: false
 db_schema:
+  dexa_scans:
+    client: none
+    columns:
+    - {name: user, target: users, type: link_single}
+    - {name: measured_on, type: date}
+    - {name: week_index, type: number}
+    - {name: bf_percent, type: number}
+    - {name: ffm_kg, type: number}
+    - {name: rmr_kcal, type: number}
+    - {name: file, type: media}
+    - {name: extracted_json, type: string}
+    - {name: notes, type: string}
+    server: full
+    title: DEXA scans
   profiles:
     client: none
     columns:
@@ -29,6 +43,10 @@ db_schema:
     - {name: phases_json, type: string}
     - {name: series_json, type: string}
     - {name: coach_state_json, type: string}
+    - {name: dexa_bf_percent, type: number}
+    - {name: dexa_ffm_kg, type: number}
+    - {name: dexa_rmr_kcal, type: number}
+    - {name: dexa_measured_on, type: date}
     server: full
     title: Profiles
   users:

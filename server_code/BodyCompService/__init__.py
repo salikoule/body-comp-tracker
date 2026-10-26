@@ -14,6 +14,8 @@ from craftify_library.BodyCoach.plan import macro_targets, navy_bf, propose_plan
 from craftify_library.BodyCoach.plan_kwargs import plan_kwargs_from_profile
 from craftify_library.BodyCoach.schedule import average_weight_in_week, build_schedule, week_index_for
 from craftify_library.CraftifyAuth import AuthError, craftify_require_user
+from DexaExtract import extract_from_bytes
+from plan_history import dexa_weeks, merge_issued_calories
 
 
 def _user():
@@ -84,9 +86,9 @@ def _row_as_profile(row) -> SimpleNamespace:
         phases_json=row["phases_json"],
         forecast_end=row.get("forecast_end"),
         coach_state_json=row.get("coach_state_json"),
-        dexa_bf_percent=row.get("dexa_bf_percent"),
-        dexa_ffm_kg=row.get("dexa_ffm_kg"),
-        dexa_rmr_kcal=row.get("dexa_rmr_kcal"),
+        dexa_bf_percent=_cell(row, "dexa_bf_percent"),
+        dexa_ffm_kg=_cell(row, "dexa_ffm_kg"),
+        dexa_rmr_kcal=_cell(row, "dexa_rmr_kcal"),
     )
 
 
@@ -138,13 +140,7 @@ def _backfill_coach_state(profile) -> None:
             "weekly_rate_kg": proposal.weekly_rate_kg,
             "issued_calories": {"1": profile["calories"]},
             "navy_bf_percent": proposal.navy_bf_percent,
-            "navy_dexa_offset": (
-                navy_dexa_offset(dexa_bf_percent=proposal.bf_percent, navy_bf_percent=proposal.navy_bf_percent)
-                if proposal.bf_percent is not None
-                and proposal.navy_bf_percent is not None
-                and profile.get("dexa_bf_percent") is not None
-                else None
-            ),
+            "navy_dexa_offset": _offset_from_proposal(proposal, _cell(profile, "dexa_bf_percent")),
             "bmr_source": proposal.bmr_source,
             "bmr_mifflin": proposal.bmr_mifflin,
             "bf_milestones": proposal.bf_milestones,
@@ -160,11 +156,88 @@ def _adjustment_reason(last_log, profile_reason: str) -> str:
     return reason if reason else profile_reason
 
 
+def _iso(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    text = str(value)
+    return text[:10] if text else None
+
+
+def _as_date(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def _offset_from_proposal(proposal, dexa_bf):
+    if dexa_bf is None or proposal.bf_percent is None or proposal.navy_bf_percent is None:
+        return None
+    return navy_dexa_offset(dexa_bf_percent=proposal.bf_percent, navy_bf_percent=proposal.navy_bf_percent)
+
+
+def _dexa_table():
+    return getattr(app_tables, "dexa_scans", None)
+
+
+def _dexa_rows(user):
+    table = _dexa_table()
+    if table is None:
+        return []
+    return _rows_for_user(table, user)
+
+
+def _dump_scans(user):
+    rows = []
+    for scan in _dexa_rows(user):
+        media = _cell(scan, "file")
+        rows.append(
+            {
+                "measured_on": _iso(_cell(scan, "measured_on")),
+                "week_index": _cell(scan, "week_index"),
+                "bf_percent": _cell(scan, "bf_percent"),
+                "ffm_kg": _cell(scan, "ffm_kg"),
+                "rmr_kcal": _cell(scan, "rmr_kcal"),
+                "filename": getattr(media, "name", None) if media is not None else None,
+            }
+        )
+    return rows
+
+
+def _write_dexa(profile, payload):
+    measured = _as_date(payload.get("dexa_measured_on"))
+    profile["dexa_measured_on"] = measured
+    profile["dexa_bf_percent"] = payload.get("dexa_bf_percent")
+    profile["dexa_ffm_kg"] = payload.get("dexa_ffm_kg")
+    rmr = payload.get("dexa_rmr_kcal")
+    profile["dexa_rmr_kcal"] = int(rmr) if rmr not in (None, "") else None
+
+
+def _coach_state_from_proposal(profile, proposal):
+    old = _coach_state(profile)
+    return {
+        "bmr": proposal.bmr,
+        "tdee": proposal.tdee,
+        "multiplier": proposal.multiplier,
+        "weekly_rate_kg": proposal.weekly_rate_kg,
+        "issued_calories": merge_issued_calories(old.get("issued_calories"), proposal.calories),
+        "navy_bf_percent": proposal.navy_bf_percent,
+        "navy_dexa_offset": _offset_from_proposal(proposal, _cell(profile, "dexa_bf_percent")),
+        "bmr_source": proposal.bmr_source,
+        "bmr_mifflin": proposal.bmr_mifflin,
+        "bf_milestones": proposal.bf_milestones,
+        "slow_streak": old.get("slow_streak") or 0,
+    }
+
+
 def _dump(profile, weights, logs) -> dict:
     phases = json.loads(profile["phases_json"])
     series = json.loads(profile["series_json"])
-    actual = [{"date": row["logged_on"].isoformat(), "kg": row["weight_kg"]} for row in weights]
-    latest = weights[-1]["weight_kg"] if weights else None
+    actual = [{"date": _iso(getattr(row, "logged_on", None) or row["logged_on"]), "kg": getattr(row, "weight_kg", None) if hasattr(row, "weight_kg") else row["weight_kg"]} for row in weights]
+    latest = actual[-1]["kg"] if actual else None
     state = _coach_state(profile)
     schedule = build_schedule(profile=_row_as_profile(profile), weights=weights, logs=logs)
     current_week = week_index_for(date.today(), profile["start_date"])
@@ -204,6 +277,18 @@ def _dump(profile, weights, logs) -> dict:
         "tdee": state.get("tdee"),
         "bmr": state.get("bmr"),
         "weekly_rate_kg": state.get("weekly_rate_kg"),
+        "navy_dexa_offset": state.get("navy_dexa_offset"),
+        "dexa_bf_percent": _cell(profile, "dexa_bf_percent"),
+        "dexa_ffm_kg": _cell(profile, "dexa_ffm_kg"),
+        "dexa_rmr_kcal": _cell(profile, "dexa_rmr_kcal"),
+        "dexa_measured_on": _iso(_cell(profile, "dexa_measured_on")),
+        "dexa_weeks": sorted({
+            int(week)
+            for week in dexa_weeks(_cell(profile, "dexa_measured_on"), profile["start_date"], week_index_for)
+            + [_cell(scan, "week_index") for scan in _dexa_rows(_user())]
+            if week
+        }),
+        "dexa_scans": _dump_scans(_user()),
         "schedule": schedule,
         "email": _user()["email"],
     }
@@ -235,6 +320,9 @@ def bodycomp_save_plan(payload: dict):
         start=payload["start_date"],
         outcome=payload["outcome"],
         chain_gain=bool(payload.get("chain_gain")),
+        dexa_bf_percent=payload.get("dexa_bf_percent"),
+        dexa_ffm_kg=payload.get("dexa_ffm_kg"),
+        dexa_rmr_kcal=int(payload["dexa_rmr_kcal"]) if payload.get("dexa_rmr_kcal") not in (None, "") else None,
     )
     rows = _rows_for_user(app_tables.profiles, user)
     if rows:
@@ -255,6 +343,7 @@ def bodycomp_save_plan(payload: dict):
     profile["chain_gain"] = bool(payload.get("chain_gain")) or (
         proposal.phase == "cut" and any(p.name == "bulk" for p in proposal.phases)
     )
+    _write_dexa(profile, payload)
     profile["phase"] = proposal.phase
     profile["calories"] = proposal.calories
     protein_g, fat_g, carbs_g = macro_targets(proposal.calories, float(payload["weight_kg"]), proposal.phase)
@@ -279,23 +368,8 @@ def bodycomp_save_plan(payload: dict):
         ]
     )
     profile["series_json"] = json.dumps([{"label": label, "kg": kg} for label, kg in proposal.weight_series])
-    _save_coach_state(
-        profile,
-        {
-            "bmr": proposal.bmr,
-            "tdee": proposal.tdee,
-            "multiplier": proposal.multiplier,
-            "weekly_rate_kg": proposal.weekly_rate_kg,
-            "issued_calories": {"1": proposal.calories},
-            "navy_bf_percent": proposal.navy_bf_percent,
-            "bmr_source": proposal.bmr_source,
-            "bmr_mifflin": proposal.bmr_mifflin,
-            "bf_milestones": proposal.bf_milestones,
-        },
-    )
+    _save_coach_state(profile, _coach_state_from_proposal(profile, proposal))
     profile.update()
-    for log in _rows_for_user(app_tables.week_logs, user):
-        log.delete()
     profile, weights, logs = _load_bundle(user)
     return _dump(profile, weights, logs)
 
@@ -389,6 +463,138 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
     log.update()
     profile, weights, logs = _load_bundle(user)
     return _dump(profile, weights, logs)
+
+
+@anvil.server.callable
+def bodycomp_delete_week_log(week_index: int):
+    user = _user()
+    for log in _rows_for_user(app_tables.week_logs, user, week_index=int(week_index)):
+        log.delete()
+    profile, weights, logs = _load_bundle(user)
+    if profile is None:
+        return {"has_plan": False}
+    return _dump(profile, weights, logs)
+
+
+@anvil.server.callable
+def bodycomp_delete_weight(logged_on):
+    user = _user()
+    day = _as_date(logged_on)
+    for row in _rows_for_user(app_tables.weight_logs, user, logged_on=day):
+        row.delete()
+    profile, weights, logs = _load_bundle(user)
+    if profile is None:
+        return {"has_plan": False}
+    return _dump(profile, weights, logs)
+
+
+@anvil.server.callable
+def bodycomp_reissue_next_week(week_index: int):
+    """Recalculate and overwrite the next week's issued calories from this week's log."""
+    user = _user()
+    profile, weights, logs = _load_bundle(user)
+    if profile is None:
+        raise AuthError("Create a plan first.")
+    week_index = int(week_index)
+    schedule = build_schedule(profile=_row_as_profile(profile), weights=weights, logs=logs)
+    row = next((item for item in schedule if item["week"] == week_index), None)
+    if row is None:
+        raise AuthError("Unknown week.")
+    avgs = [item["actual_weight_kg"] for item in schedule if item["week"] <= week_index]
+    rate = trend_rate_kg(avgs)
+    state = _coach_state(profile)
+    adaptation = adapt_calories(
+        phase=row["phase"],
+        current_calories=row["target_calories"],
+        chosen_rate_kg=state.get("weekly_rate_kg") or 0.4,
+        trend_rate_kg=rate,
+        slow_streak=int(state.get("slow_streak") or 0),
+        bmr=int(state.get("bmr") or 1500),
+        maintenance=int(state.get("tdee") or row["target_calories"]),
+    )
+    issued = state.setdefault("issued_calories", {})
+    issued[str(week_index + 1)] = adaptation.next_calories
+    existing = _rows_for_user(app_tables.week_logs, user, week_index=week_index)
+    if existing:
+        existing[0]["next_calories"] = adaptation.next_calories
+        existing[0]["adjustment_reason"] = adaptation.reason
+        existing[0].update()
+    if week_index + 1 == week_index_for(date.today(), profile["start_date"]):
+        profile["calories"] = adaptation.next_calories
+        profile["reason"] = adaptation.reason
+        profile.update()
+    _save_coach_state(profile, state)
+    profile, weights, logs = _load_bundle(user)
+    return _dump(profile, weights, logs)
+
+
+@anvil.server.callable
+def bodycomp_read_dexa(media):
+    if media is None:
+        raise AuthError("Choose a DEXA file first.")
+    data = media.get_bytes()
+    parsed = extract_from_bytes(data, getattr(media, "content_type", "") or "", getattr(media, "name", "") or "")
+    parsed.pop("extracted_text", None)
+    return parsed
+
+
+@anvil.server.callable
+def bodycomp_store_dexa(media, payload=None):
+    user = _user()
+    payload = payload or {}
+    if media is None:
+        raise AuthError("Choose a DEXA file first.")
+    parsed = extract_from_bytes(
+        media.get_bytes(),
+        getattr(media, "content_type", "") or "",
+        getattr(media, "name", "") or "",
+    )
+    measured = _as_date(payload.get("dexa_measured_on") or parsed.get("dexa_measured_on"))
+    bf = payload.get("dexa_bf_percent") if payload.get("dexa_bf_percent") not in (None, "") else parsed.get("dexa_bf_percent")
+    ffm = payload.get("dexa_ffm_kg") if payload.get("dexa_ffm_kg") not in (None, "") else parsed.get("dexa_ffm_kg")
+    rmr = payload.get("dexa_rmr_kcal") if payload.get("dexa_rmr_kcal") not in (None, "") else parsed.get("dexa_rmr_kcal")
+    profile_rows = _rows_for_user(app_tables.profiles, user)
+    start = profile_rows[0]["start_date"] if profile_rows else date.today()
+    week = week_index_for(measured or date.today(), start)
+    table = _dexa_table()
+    if table is None:
+        raise AuthError("DEXA storage is not available yet. Restart the app after the schema update.")
+    table.add_row(
+        user=user,
+        measured_on=measured,
+        week_index=week,
+        bf_percent=bf,
+        ffm_kg=ffm,
+        rmr_kcal=int(rmr) if rmr not in (None, "") else None,
+        file=media,
+        extracted_json=json.dumps({k: v for k, v in parsed.items() if k != "extracted_text"}),
+        notes=payload.get("notes") or "",
+    )
+    if profile_rows:
+        profile = profile_rows[0]
+        _write_dexa(
+            profile,
+            {
+                "dexa_measured_on": measured,
+                "dexa_bf_percent": bf,
+                "dexa_ffm_kg": ffm,
+                "dexa_rmr_kcal": rmr,
+            },
+        )
+        proposal = propose_plan(**plan_kwargs_from_profile(_row_as_profile(profile)))
+        profile["bf_percent"] = proposal.bf_percent
+        profile["target_bf_percent"] = proposal.target_bf_percent
+        profile["target_weight_kg"] = proposal.target_weight_kg
+        profile["reason"] = proposal.reason
+        profile["calories"] = proposal.calories
+        _save_coach_state(profile, _coach_state_from_proposal(profile, proposal))
+        profile.update()
+    profile, weights, logs = _load_bundle(user)
+    if profile is None:
+        return {"has_plan": False, "extract": parsed}
+    dumped = _dump(profile, weights, logs)
+    dumped["extract"] = parsed
+    return dumped
 
 
 def _ensure_local_password():
