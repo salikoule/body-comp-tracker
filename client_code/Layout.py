@@ -120,7 +120,7 @@ def empty_state(message, action_text="", handler=None):
 
 
 PAGE_PATHS = {
-    "dashboard": "/",
+    "dashboard": "/dashboard",
     "tracker": "/tracker",
     "progress": "/progress",
     "checkin": "/checkin",
@@ -136,4 +136,4 @@ def navigate(page, **kwargs):
     if page == "checkin" and week is not None:
         routing_navigate(path="/checkin/:week", params={"week": week}, form_properties=kwargs)
         return
-    routing_navigate(path=PAGE_PATHS.get(page) or "/", form_properties=kwargs)
+    routing_navigate(path=PAGE_PATHS.get(page) or "/dashboard", form_properties=kwargs)

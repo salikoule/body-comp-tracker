@@ -1,4 +1,3 @@
-from routing import router
 import anvil.server
 import anvil.users
 from craftify_library.CraftifyRouting import AuthenticatedShellRoute, Redirect, Route
@@ -15,11 +14,20 @@ class LoginRoute(Route):
 
     def before_load(self, **loader_args):
         if anvil.users.get_user() is not None:
-            raise Redirect(path="/")
+            raise Redirect(path="/dashboard")
+
+
+class RootRoute(Route):
+    path = "/"
+
+    def before_load(self, **loader_args):
+        if anvil.users.get_user() is None:
+            raise Redirect(path="/login")
+        raise Redirect(path="/dashboard")
 
 
 class DashboardRoute(AppPage):
-    path = "/"
+    path = "/dashboard"
     form = "HomeForm"
 
     def before_load(self, **loader_args):

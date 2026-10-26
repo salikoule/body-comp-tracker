@@ -320,8 +320,10 @@ body,
 .structure.nav-collapsed .bc-brand-text { display: none; }
 
 .left-nav-footer .anvil-role-sidebar-actions { padding: 8px 10px 12px; }
-.left-nav a.anvil-role-bc-nav-current,
-.left-nav a.anvil-role-selected { background: var(--bc-soft); }
+.left-nav a.anvil-role-selected {
+  background: var(--bc-soft);
+  font-weight: 650;
+}
 
 /* ---------- Weekly tracker cells (bootstrap3 Tabulator, iPac compact rows) ---------- */
 .bc-empty { color: #cbd5e1; }

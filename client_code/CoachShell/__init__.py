@@ -1,22 +1,21 @@
 from ._anvil_designer import CoachShellTemplate
 from anvil import *
-from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server
 import anvil.users
 from craftify_library.Startup import configure as configure_craftify_client
 from craftify_library.CustomComponents.AccountMenu import AccountMenu
-from craftify_library.CraftifyRouting import NavLink, add_event_handler, navigate
+from craftify_library.CraftifyRouting import NavLink, navigate
 from body_comp_tracker import Layout
 
 NAV = (
-    ("Dashboard", "/", "fa:chart-pie"),
-    ("Weekly tracker", "/tracker", "fa:table-list"),
-    ("Progress", "/progress", "fa:chart-line"),
-    ("Check-in", "/checkin", "fa:clipboard-check"),
-    ("Plan summary", "/plan", "fa:route"),
-    ("Profile & plan", "/profile", "fa:user-pen"),
+    ("Dashboard", "/dashboard", "fa:chart-pie", True),
+    ("Weekly tracker", "/tracker", "fa:table-list", True),
+    ("Progress", "/progress", "fa:chart-line", True),
+    ("Check-in", "/checkin", "fa:clipboard-check", False),
+    ("Plan summary", "/plan", "fa:route", True),
+    ("Profile & plan", "/profile", "fa:user-pen", True),
 )
 
 BRAND = (
@@ -31,28 +30,27 @@ class CoachShell(CoachShellTemplate):
     def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         configure_craftify_client()
-        self._links = {}
         self._build_nav()
         self._build_footer()
-        add_event_handler("navigate", self._on_router_navigate)
 
     def _build_nav(self):
         self.menu_panel.clear()
         self.menu_panel.add_component(Layout.html(BRAND), full_width_row=True)
-        for text, path, icon in NAV:
-            link = NavLink(
-                text=text,
-                path=path,
-                icon=icon,
-                foreground="#1e3a5f",
-                align="left",
-                icon_align="left",
-                font_size=13,
-                spacing_above="none",
-                spacing_below="none",
+        for text, path, icon, exact_path in NAV:
+            self.menu_panel.add_component(
+                NavLink(
+                    text=text,
+                    path=path,
+                    icon=icon,
+                    exact_path=exact_path,
+                    foreground="#1e3a5f",
+                    align="left",
+                    icon_align="left",
+                    font_size=13,
+                    spacing_above="none",
+                    spacing_below="none",
+                )
             )
-            self._links[path] = link
-            self.menu_panel.add_component(link)
 
     def _build_footer(self):
         email = ""
@@ -75,10 +73,3 @@ class CoachShell(CoachShellTemplate):
         except Exception:
             pass
         navigate(path="/login")
-
-    def _on_router_navigate(self, **event_args):
-        for link in self._links.values():
-            active = bool(getattr(link, "active", False))
-            link.role = "bc-nav-current" if active else None
-            link.background = "#e8f1fb" if active else ""
-            link.bold = active

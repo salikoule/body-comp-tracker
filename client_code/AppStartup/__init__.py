@@ -17,7 +17,7 @@ class AppStartup(AppStartupTemplate):
         self.panel.clear()
         self.panel.add_component(
             CraftifyLoginForm(
-                redirect_path="/",
+                redirect_path="/dashboard",
                 brand_text="Body Comp",
                 brand_sub="Cut · reverse · bulk",
                 copyright="© Body Comp",

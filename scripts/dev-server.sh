@@ -45,6 +45,8 @@ ARGS=(
   --dep-id dep_kfkrna97mklbm=anvil_extras
   --dep-id 3PIDO5P3H4VPEMPL=routing
   --dep-id dep_routing=routing
+  --dep-id dep_3cbnzlajrrq4tg=routing
+  --dep-id dep_2lwdiwk1dh75u=routing
 )
 if [[ -n "${ANVIL_GOOGLE_CLIENT_ID:-}" && -n "${ANVIL_GOOGLE_CLIENT_SECRET:-}" ]]; then
   ARGS+=(--google-client-id "$ANVIL_GOOGLE_CLIENT_ID")
