@@ -381,14 +381,6 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
     return _dump(profile, weights, logs)
 
 
-def _user_row_by_email(email: str):
-    target = email.strip().lower()
-    for row in _table_rows(app_tables.users):
-        if (row["email"] or "").strip().lower() == target:
-            return row
-    return None
-
-
 @anvil.server.callable
 def bodycomp_startup():
     """Return plan state for the signed-in user. Does not create a session."""

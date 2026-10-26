@@ -2613,6 +2613,9 @@ https://stackoverflow.com/questions/30533055/calculating-shadow-values-for-all-m
 .anvil-role-login-hero {
   position: relative !important;
   overflow: hidden;
+  min-height: 100dvh;
+  height: 100dvh;
+  box-sizing: border-box;
 }
 
 .anvil-role-login-hero .anvil-panel-row:has(.anvil-role-login-footer-left),
