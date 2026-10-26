@@ -426,9 +426,10 @@ def bodycomp_bootstrap_session():
 
 @anvil.server.callable
 def bodycomp_startup():
-    """Bootstrap auth and return plan state in one round trip."""
-    _bootstrap_local_session()
-    user = _user()
+    """Return plan state for the signed-in user. Does not create a session."""
+    user = anvil.users.get_user()
+    if user is None:
+        return {"logged_in": False}
     profile, weights, logs = _load_bundle(user)
     if profile is None:
         return {"has_plan": False, "email": user["email"]}

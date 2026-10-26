@@ -13,15 +13,27 @@
   --bc-bad: #dc2626;
 }
 
+html, body, .anvil-root-container {
+  height: 100%;
+}
 body,
 .nav-holder .content {
   background: var(--bc-page);
 }
+.structure,
+.nav-holder,
+.nav-holder .content {
+  min-height: 100vh;
+  height: 100%;
+}
 
 /* ---------- Content area ---------- */
 .anvil-role-bc-content {
-  padding: 20px 24px 40px !important;
-  max-width: 1360px;
+  padding: 16px 20px 16px !important;
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100%;
 }
 
 .bc-stack {

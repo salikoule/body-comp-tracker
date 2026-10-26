@@ -20,7 +20,7 @@ TABULATOR_OPTIONS = {
     "pagination": False,
     "index": "week",
     "css_class": ["table-striped", "table-bordered"],
-    "layout": "fitData",
+    "layout": "fitDataStretch",
     "columnDefaults": {"headerSort": False, "headerHozAlign": "left"},
     "columnHeaderVertAlign": "middle",
     "placeholder": '<div style="color:#64748b;font-size:13px;padding:24px 0;">No weeks yet</div>',
@@ -218,14 +218,34 @@ class TrackerForm(TrackerFormTemplate):
             rows.append(item)
         table = Tabulator()
         options = dict(TABULATOR_OPTIONS)
-        options["height"] = 560
+        options["height"] = 420
         table.options = options
         table.columns = COLUMNS
         table.data = rows
         table.set_event_handler("row_formatter", self._paint_row)
-        table.set_event_handler("table_built", self._scroll_to_current)
+        table.set_event_handler("table_built", self._on_table_built)
         self._tabulator = table
         return table
+
+    def _on_table_built(self, **event_args):
+        self._fill_table_height()
+        self._scroll_to_current()
+        try:
+            from anvil.js import window
+            window.addEventListener("resize", self._fill_table_height)
+        except Exception:
+            pass
+
+    def _fill_table_height(self, *args):
+        try:
+            from anvil.js import get_dom_node, window
+            node = get_dom_node(self._tabulator)
+            el = node.querySelector(".tabulator") if hasattr(node, "querySelector") else node
+            top = el.getBoundingClientRect().top
+            height = max(280, int(window.innerHeight - top - 16))
+            self._tabulator.height = "%spx" % height
+        except Exception:
+            pass
 
     def _paint_row(self, row, **event_args):
         try:
