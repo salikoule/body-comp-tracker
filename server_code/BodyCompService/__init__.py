@@ -381,9 +381,36 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
     return _dump(profile, weights, logs)
 
 
+def _ensure_local_password():
+    """Give the original local account a known password so the login page works."""
+    email = "local@bodycomp.app"
+    password = "local-dev-session"
+    row = None
+    for item in _table_rows(app_tables.users):
+        if (item["email"] or "").strip().lower() == email:
+            row = item
+            break
+    if row is None:
+        return
+    row["enabled"] = True
+    row["confirmed_email"] = True
+    if "n_password_failures" in row:
+        row["n_password_failures"] = 0
+    try:
+        import bcrypt
+        row["password_hash"] = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode()
+    except Exception:
+        return
+    row.update()
+
+
 @anvil.server.callable
 def bodycomp_startup():
     """Return plan state for the signed-in user. Does not create a session."""
+    try:
+        _ensure_local_password()
+    except Exception:
+        pass
     user = anvil.users.get_user()
     if user is None:
         return {"logged_in": False}

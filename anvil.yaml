@@ -40,6 +40,8 @@ db_schema:
     - {name: role, type: string}
     - {name: confirmed_email, type: bool}
     - {name: signed_up, type: datetime}
+    - {name: password_hash, type: string}
+    - {name: n_password_failures, type: number}
     server: full
     title: Users
   week_logs:
