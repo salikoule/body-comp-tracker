@@ -1,0 +1,311 @@
+/* Shared light/dark tokens. Dark class is html.ipac-dark (also craftify-theme-dark). */
+
+html.ipac-dark,
+html.craftify-theme-dark,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e7eef7;
+  --muted: #94a3b8;
+  --line: #2a3a52;
+  --panel: #151e2e;
+  --sidebar: #111a2e;
+  --page: #0b1220;
+  --accent: #93c5fd;
+  --accent-soft: #1e3a5f;
+  --hover: #1a2740;
+  --navy: #93c5fd;
+}
+
+html.ipac-dark,
+html.ipac-dark body,
+html.ipac-dark .anvil-root-container,
+html.ipac-dark .structure,
+html.ipac-dark .nav-holder,
+html.ipac-dark .nav-holder .content,
+html.ipac-dark .content {
+  background: #0b1220 !important;
+  color: #e7eef7;
+}
+
+html.ipac-dark .nav-holder .left-nav,
+html.ipac-dark .left-nav-placeholder {
+  background-color: #111a2e !important;
+  border-right-color: #2a3a52 !important;
+}
+
+html.ipac-dark .left-nav-footer {
+  background: #111a2e !important;
+  border-top-color: #2a3a52 !important;
+}
+
+html.ipac-dark .nav-collapse,
+html.ipac-dark .sidebar-toggle {
+  background: #151e2e !important;
+  border-color: #2a3a52 !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .nav-collapse:hover {
+  background: #1a2740 !important;
+  border-color: #3b4d68 !important;
+}
+
+html.ipac-dark .left-nav a,
+html.ipac-dark .left-nav a .link-text,
+html.ipac-dark .left-nav .anvil-component-icon,
+html.ipac-dark .left-nav i.fa {
+  color: #dbe4f0 !important;
+}
+
+html.ipac-dark .left-nav a.anvil-role-selected,
+html.ipac-dark .left-nav a.anvil-role-selected .link-text,
+html.ipac-dark .left-nav a.anvil-role-selected .anvil-component-icon {
+  background: #1e3a5f !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .left-nav a:hover {
+  background: #1a2740 !important;
+}
+
+html.ipac-dark .nav-brand-text strong,
+html.ipac-dark .bc-brand-text strong {
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .nav-brand-text span,
+html.ipac-dark .bc-brand-text span {
+  color: #94a3b8 !important;
+}
+
+html.ipac-dark .kc-card,
+html.ipac-dark .cc-card,
+html.ipac-dark .ts-card,
+html.ipac-dark .bc-phase,
+html.ipac-dark .anvil-role-card,
+html.ipac-dark .anvil-role-filters-bar,
+html.ipac-dark .anvil-role-configure-setting,
+html.ipac-dark .anvil-role-configure-header,
+html.ipac-dark .anvil-role-configure-table-card {
+  background: #151e2e !important;
+  border-color: #2a3a52 !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .kc-page,
+html.ipac-dark .cc-page,
+html.ipac-dark .ts-page,
+html.ipac-dark .kc-card strong,
+html.ipac-dark .cc-head h3,
+html.ipac-dark .ts-head h3,
+html.ipac-dark .bc-page-head h2,
+html.ipac-dark .bc-progress-head strong,
+html.ipac-dark .bc-phase-kcal,
+html.ipac-dark .bc-week,
+html.ipac-dark .bc-dl dd {
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .kc-card b,
+html.ipac-dark .kc-card em,
+html.ipac-dark .cc-head p,
+html.ipac-dark .ts-head p,
+html.ipac-dark .bc-page-desc,
+html.ipac-dark .bc-eyebrow,
+html.ipac-dark .bc-note,
+html.ipac-dark .bc-dl dt,
+html.ipac-dark .bc-muted {
+  color: #94a3b8 !important;
+}
+
+html.ipac-dark .kc-icon,
+html.ipac-dark .kc-card:not(.is-good):not(.is-warn):not(.is-bad) strong {
+  color: #93c5fd !important;
+}
+
+html.ipac-dark .ts-head,
+html.ipac-dark .cc-head {
+  border-bottom-color: #2a3a52 !important;
+}
+
+html.ipac-dark .am-menu,
+html.ipac-dark .am-box,
+html.ipac-dark .am-item {
+  background: #151e2e !important;
+  border-color: #2a3a52 !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .am-item:hover,
+html.ipac-dark .am-box:hover {
+  background: #1a2740 !important;
+}
+
+html.ipac-dark .am-email,
+html.ipac-dark .am-item .am-ico {
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .am-ava {
+  background: #1e3a5f !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .am-rule {
+  background: #2a3a52 !important;
+}
+
+html.ipac-dark .content .btn,
+html.ipac-dark .content .btn-default,
+html.ipac-dark .content .file-loader > label,
+html.ipac-dark .content [class*="anvil-m3-button"]:not(.anvil-role-ae-ms-btn),
+html.ipac-dark .content .anvil-button > .anvil-btn,
+html.ipac-dark .bc-row-edit {
+  background: #151e2e !important;
+  border-color: #2a3a52 !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .content .btn:hover,
+html.ipac-dark .content .anvil-button > .anvil-btn:hover,
+html.ipac-dark .bc-row-edit:hover {
+  background: #1a2740 !important;
+  border-color: #3b4d68 !important;
+}
+
+html.ipac-dark .content .anvil-role-primary-color,
+html.ipac-dark .content .anvil-role-primary-color > .anvil-btn,
+html.ipac-dark .content .btn-primary {
+  background: #1e3a5f !important;
+  border-color: #1e3a5f !important;
+  color: #fff !important;
+}
+
+html.ipac-dark .form-control,
+html.ipac-dark select,
+html.ipac-dark textarea,
+html.ipac-dark input[type="text"],
+html.ipac-dark input[type="number"],
+html.ipac-dark input[type="email"],
+html.ipac-dark input[type="password"],
+html.ipac-dark input[type="date"],
+html.ipac-dark input[type="search"],
+html.ipac-dark .anvil-textbox input,
+html.ipac-dark .anvil-text-area textarea,
+html.ipac-dark .anvil-dropdown select,
+html.ipac-dark .anvil-datepicker input,
+html.ipac-dark .anvil-m3-textbox,
+html.ipac-dark .anvil-m3-textinput-input,
+html.ipac-dark input.anvil-form-control,
+html.ipac-dark input.anvil-component:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+html.ipac-dark textarea.anvil-component,
+html.ipac-dark .anvil-component select,
+html.ipac-dark .anvil-datepicker,
+html.ipac-dark .anvil-dropdown,
+html.ipac-dark .anvil-dropdown .anvil-dropdown-outlined {
+  background-color: #121a2b !important;
+  color: #e7eef7 !important;
+  -webkit-text-fill-color: #e7eef7 !important;
+  border-color: #2a3a52 !important;
+  caret-color: #e7eef7;
+}
+
+html.ipac-dark .content label,
+html.ipac-dark .content .anvil-label,
+html.ipac-dark .content .anvil-checkbox label,
+html.ipac-dark .bc-field-label,
+html.ipac-dark .bc-rules {
+  color: #dbe4f0 !important;
+}
+
+html.ipac-dark .tabulator,
+html.ipac-dark .tabulator-header,
+html.ipac-dark .tabulator-tableholder,
+html.ipac-dark .tabulator-footer {
+  background-color: #151e2e !important;
+  border-color: #2a3a52 !important;
+  color: #e7eef7 !important;
+}
+
+html.ipac-dark .tabulator-col,
+html.ipac-dark .tabulator-col-content,
+html.ipac-dark .tabulator .tabulator-header .tabulator-col {
+  background-color: #111a2e !important;
+  color: #dbe4f0 !important;
+  border-color: #2a3a52 !important;
+}
+
+html.ipac-dark .tabulator-row,
+html.ipac-dark .tabulator-row .tabulator-cell {
+  background-color: #151e2e !important;
+  color: #e7eef7 !important;
+  border-color: #2a3a52 !important;
+}
+
+html.ipac-dark .tabulator-row.tabulator-row-even .tabulator-cell {
+  background-color: #121a2b !important;
+}
+
+html.ipac-dark .tabulator-row.tabulator-selectable:hover .tabulator-cell {
+  background-color: #1a2740 !important;
+}
+
+html.ipac-dark .tabulator .tabulator-header .tabulator-col .tabulator-header-filter input,
+html.ipac-dark .tabulator .tabulator-header .tabulator-col .tabulator-header-filter select {
+  background-color: #121a2b !important;
+  color: #e7eef7 !important;
+  border-color: #2a3a52 !important;
+}
+
+html.ipac-dark .tabulator-row.bc-week-current,
+html.ipac-dark .tabulator-row.bc-week-current .tabulator-cell {
+  background-color: #1a2740 !important;
+}
+
+html.ipac-dark .tabulator-cell.bc-col-target {
+  background: #121a2b !important;
+}
+
+html.ipac-dark .tabulator-cell.bc-col-actual {
+  background: #1e3a5f !important;
+}
+
+html.ipac-dark .bc-week-badge,
+html.ipac-dark .bc-macros-chip,
+html.ipac-dark .bc-pill-muted {
+  background: #1a2740 !important;
+  border-color: #2a3a52 !important;
+  color: #dbe4f0 !important;
+}
+
+html.ipac-dark .bc-progress-track {
+  background: #1a2740 !important;
+}
+
+html.ipac-dark .bc-progress-fill {
+  background: #93c5fd !important;
+}
+
+html.ipac-dark .file-loader > label {
+  color: #93c5fd !important;
+}
+
+html.ipac-dark .anvil-datepicker,
+html.ipac-dark .anvil-component.anvil-datepicker {
+  background: #121a2b !important;
+  border-color: #2a3a52 !important;
+}
+
+html.ipac-dark .anvil-datepicker input,
+html.ipac-dark .anvil-datepicker input.form-control,
+html.ipac-dark .anvil-datepicker input.anvil-component {
+  color: #e7eef7 !important;
+  background: transparent !important;
+}
+
+html.ipac-dark .anvil-datepicker .fa,
+html.ipac-dark .anvil-datepicker i,
+html.ipac-dark .anvil-datepicker .fa::before,
+html.ipac-dark .anvil-datepicker i::before {
+  color: #94a3b8 !important;
+}

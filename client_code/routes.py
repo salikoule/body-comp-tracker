@@ -38,8 +38,6 @@ class DashboardRoute(AppPage):
             return
         if state.get("logged_in") is False:
             raise Redirect(path="/login")
-        if not state.get("has_plan"):
-            raise Redirect(path="/profile")
 
 
 class TrackerRoute(AppPage):
@@ -69,11 +67,19 @@ class CheckInWeekRoute(AppPage):
             return {"week": week}
 
 
-class PlanRoute(AppPage):
+class PlanRoute(Route):
     path = "/plan"
-    form = "PlanForm"
+
+    def before_load(self, **loader_args):
+        if anvil.users.get_user() is None:
+            raise Redirect(path="/login")
+        raise Redirect(path="/dashboard", query={"settings": "plan"})
 
 
-class ProfileRoute(AppPage):
+class ProfileRoute(Route):
     path = "/profile"
-    form = "ProfileForm"
+
+    def before_load(self, **loader_args):
+        if anvil.users.get_user() is None:
+            raise Redirect(path="/login")
+        raise Redirect(path="/dashboard", query={"settings": "profile"})

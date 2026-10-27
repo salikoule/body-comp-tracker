@@ -129,9 +129,24 @@ PAGE_PATHS = {
 }
 
 
+def open_settings(section="profile"):
+    shell = get_open_form()
+    if hasattr(shell, "open_settings"):
+        shell.open_settings(section)
+
+
+def close_settings():
+    shell = get_open_form()
+    if hasattr(shell, "close_settings"):
+        shell.close_settings()
+
+
 def navigate(page, **kwargs):
     from craftify_library.CraftifyRouting import navigate as routing_navigate
 
+    if page in ("profile", "plan"):
+        open_settings(page)
+        return
     week = kwargs.pop("week", None)
     if page == "checkin" and week is not None:
         routing_navigate(path="/checkin/:week", params={"week": week}, form_properties=kwargs)

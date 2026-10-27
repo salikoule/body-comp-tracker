@@ -436,3 +436,22 @@ body,
 .tabulator .tabulator-header .tabulator-col.bc-col-group-actual .tabulator-col-title { color: var(--bc-navy); }
 .tabulator-cell.bc-col-target { background: #f8fafc !important; }
 .tabulator-cell.bc-col-actual { background: #e8f1fb !important; }
+
+html.ipac-dark {
+  --bc-navy: #93c5fd;
+  --bc-navy-deep: #bfdbfe;
+  --bc-ink: #e7eef7;
+  --bc-muted: #94a3b8;
+  --bc-line: #2a3a52;
+  --bc-soft: #1e3a5f;
+  --bc-page: #0b1220;
+}
+
+html.ipac-dark body,
+html.ipac-dark .nav-holder .content {
+  background: var(--bc-page);
+}
+
+html.ipac-dark .left-nav a.anvil-role-selected {
+  background: var(--bc-soft);
+}

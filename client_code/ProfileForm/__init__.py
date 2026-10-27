@@ -30,6 +30,7 @@ def _as_date(value, fallback=None):
 
 class ProfileForm(ProfileFormTemplate):
     def __init__(self, routing_context=None, **properties):
+        self._compact = bool(properties.pop("compact", False))
         self.init_components(**properties)
         state = anvil.server.call("bodycomp_get_plan")
         self._has_plan = bool(state.get("has_plan"))
@@ -63,7 +64,7 @@ class ProfileForm(ProfileFormTemplate):
 
         header = Layout.page_header(
             "Profile & plan" if self._has_plan else "Set up your plan",
-            eyebrow=Format.eyebrow(s) if self._has_plan else "Profile",
+            eyebrow="" if self._compact else (Format.eyebrow(s) if self._has_plan else "Profile"),
             description=(
                 "Saving updates the plan from these measurements. Check-ins, daily weights, and issued calories stay."
                 if self._has_plan
@@ -244,6 +245,7 @@ class ProfileForm(ProfileFormTemplate):
             return
         Notification(state.get("reason") or "Plan saved. History was kept.",
                      title="Plan saved", style="success", timeout=6).show()
+        Layout.close_settings()
         Layout.navigate("dashboard")
 
     def _read_dexa(self, **event_args):

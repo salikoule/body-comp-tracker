@@ -19,6 +19,7 @@ RULES = (
 
 class PlanForm(PlanFormTemplate):
     def __init__(self, routing_context=None, **properties):
+        self._compact = bool(properties.pop("compact", False))
         self.init_components(**properties)
         s = anvil.server.call("bodycomp_get_plan")
         if not s.get("has_plan"):
@@ -32,7 +33,7 @@ class PlanForm(PlanFormTemplate):
             return
         header = Layout.page_header(
             "Plan summary",
-            eyebrow=Format.eyebrow(s),
+            eyebrow="" if self._compact else Format.eyebrow(s),
             description="Phase dates, energy targets, and the coaching rules that adjust calories each Sunday.",
             actions=(Layout.button("Edit profile", self._open_profile),),
         )
