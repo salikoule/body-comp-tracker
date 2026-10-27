@@ -6,6 +6,7 @@ from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server
+from craftify_library.CustomComponents.FileDrop import FileDrop
 from body_comp_tracker import Format, Layout
 
 SEX = (("Male", "male"), ("Female", "female"))
@@ -60,7 +61,11 @@ class ProfileForm(ProfileFormTemplate):
         self.dexa_bf = TextBox(type="number", placeholder="e.g. 28.8", text=_text(s.get("dexa_bf_percent")))
         self.dexa_ffm = TextBox(type="number", placeholder="e.g. 57.7", text=_text(s.get("dexa_ffm_kg")))
         self.dexa_rmr = TextBox(type="number", placeholder="e.g. 1550", text=_text(s.get("dexa_rmr_kcal")))
-        self.dexa_file = FileLoader(text="Choose file", file_types="application/pdf,image/png,image/jpeg")
+        self.dexa_file = FileDrop(
+            title="Drop a DEXA scan here",
+            hint="or click to browse · PDF or photo",
+            file_types="application/pdf,image/png,image/jpeg",
+        )
 
         header = Layout.page_header(
             "Profile & plan" if self._has_plan else "Set up your plan",
@@ -102,7 +107,7 @@ class ProfileForm(ProfileFormTemplate):
                 Layout.field("Fat-free mass (kg)", self.dexa_ffm),
                 Layout.field("Measured RMR (kcal)", self.dexa_rmr),
             ),
-            Layout.field("Scan file", self.dexa_file, hint="PDF or photo. The file is stored. Numbers are read when possible."),
+            Layout.field("Scan file", self.dexa_file),
             Layout.grid(
                 "repeat(2, max-content)",
                 Layout.button("Read file", self._read_dexa),
