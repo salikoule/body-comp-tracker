@@ -223,9 +223,18 @@ body,
   font-family: Montserrat, system-ui, sans-serif;
 }
 .bc-field-label {
+  display: flex;
+  align-items: flex-end;
+  min-height: 32px;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1.25;
   color: #334155;
+}
+.bc-field-input {
+  display: flex;
+  align-items: stretch;
+  min-height: 32px;
 }
 .bc-field-hint {
   font-size: 11px;
@@ -245,6 +254,12 @@ body,
   width: 100% !important;
   max-width: 100%;
   box-sizing: border-box;
+}
+.bc-field-input > a.anvil-file-loader,
+.bc-field-input > .anvil-file-loader,
+.bc-field-input .file-loader {
+  width: auto !important;
+  max-width: max-content !important;
 }
 .bc-actions-row {
   display: flex;

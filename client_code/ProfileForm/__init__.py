@@ -60,7 +60,7 @@ class ProfileForm(ProfileFormTemplate):
         self.dexa_bf = TextBox(type="number", placeholder="e.g. 28.8", text=_text(s.get("dexa_bf_percent")))
         self.dexa_ffm = TextBox(type="number", placeholder="e.g. 57.7", text=_text(s.get("dexa_ffm_kg")))
         self.dexa_rmr = TextBox(type="number", placeholder="e.g. 1550", text=_text(s.get("dexa_rmr_kcal")))
-        self.dexa_file = FileLoader(file_types="application/pdf,image/png,image/jpeg")
+        self.dexa_file = FileLoader(text="Choose file", file_types="application/pdf,image/png,image/jpeg")
 
         header = Layout.page_header(
             "Profile & plan" if self._has_plan else "Set up your plan",
