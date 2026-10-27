@@ -19,9 +19,9 @@ NAV = (
 )
 
 BRAND = (
-    '<div class="bc-brand">'
-    '<div class="bc-brand-mark">BC</div>'
-    '<div class="bc-brand-text"><strong>Body Comp</strong><span>Cut · reverse · bulk</span></div>'
+    '<div class="nav-brand bc-brand">'
+    '<div class="nav-brand-mark bc-brand-mark">BC</div>'
+    '<div class="nav-brand-text bc-brand-text"><strong>Body Comp</strong><span>Cut · reverse · bulk</span></div>'
     "</div>"
 )
 
