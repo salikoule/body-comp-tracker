@@ -236,6 +236,9 @@ body,
   align-items: stretch;
   min-height: 32px;
 }
+.bc-field-input:has(.cf-drop) {
+  min-height: 112px;
+}
 .bc-field-hint {
   font-size: 11px;
   color: var(--bc-muted);

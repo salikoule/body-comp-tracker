@@ -76,16 +76,13 @@ def _pdf_text(data: bytes) -> str:
 
 
 def openai_api_key():
-    """Hosted Anvil: App Secret. Local: --secret or OPENAI_API_KEY in the environment."""
+    """The signed-in user's key from Settings → AI. No shared app secret."""
     try:
-        import anvil.secrets
+        from craftify_library.CraftifyAI import user_openai_key
 
-        value = anvil.secrets.get_secret("OPENAI_API_KEY")
-        if value:
-            return value
+        return user_openai_key()
     except Exception:
-        pass
-    return os.environ.get("OPENAI_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        return ""
 
 
 def _llm_extract(data: bytes, content_type: str, name: str, text: str) -> dict[str, Any] | None:

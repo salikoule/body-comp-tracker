@@ -1,4 +1,3 @@
-import anvil.secrets
 """Body composition coach — persistence + craftify_library.BodyCoach rules."""
 
 import json
