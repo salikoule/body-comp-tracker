@@ -189,15 +189,6 @@ def _phase_mark_area(rows):
     return {"silent": True, "data": data}
 
 
-def _last_scored_week(rows):
-    last = None
-    for row in rows or []:
-        scored = score_week(row)
-        if scored["weight_hit"] is not None or scored["bf_hit"] is not None:
-            last = row.get("week")
-    return last
-
-
 def _hit_color(hit):
     if hit is True:
         return HIT_COLOR
@@ -216,58 +207,38 @@ def _actual_point(value, hit, stop):
     return point
 
 
-def _macro_point(row, field, current_week):
+def _macro_points(row, current_week):
     stack = macro_stack(row)
     if stack is None:
-        return None
-    point = {
-        "value": stack[field],
+        return None, None, None
+    faded = _is_future(row.get("week"), current_week)
+    extras = {
         "protein_g": stack["protein_g"],
         "fat_g": stack["fat_g"],
         "carbs_g": stack["carbs_g"],
         "kcal": stack["kcal"],
     }
-    if _is_future(row.get("week"), current_week):
-        point["itemStyle"] = {"opacity": FADE_OPACITY}
-    return point
 
+    def point(field):
+        item = dict(extras)
+        item["value"] = stack[field]
+        if faded:
+            item["itemStyle"] = {"opacity": FADE_OPACITY}
+        return item
 
-def _spine_tooltip(params):
-    if not params:
-        return ""
-    items = params if isinstance(params, list) else [params]
-    first = items[0] if items else {}
-    title = ""
-    if isinstance(first, dict):
-        title = first.get("axisValue") or ""
-    lines = [str(title)] if title else []
-    extras = None
-    skip = {"Lane", "Lane width"}
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        name = item.get("seriesName") or ""
-        if name in skip:
-            continue
-        data = item.get("data")
-        if extras is None and isinstance(data, dict) and data.get("protein_g") is not None:
-            extras = data
-        value = item.get("value")
-        if isinstance(value, dict):
-            value = value.get("value")
-        if value is None:
-            continue
-        lines.append("%s  %s" % (name, value))
-    if extras:
-        lines.append("P %sg · F %sg · C %sg" % (extras.get("protein_g"), extras.get("fat_g"), extras.get("carbs_g")))
-        lines.append("%s kcal" % extras.get("kcal"))
-    return "\n".join(lines)
+    return point("protein_kcal"), point("fat_kcal"), point("carbs_kcal")
 
 
 def spine_options(rows, current_week):
     rows = rows or []
     weeks = [_week_label(row.get("week")) for row in rows]
-    last_scored = _last_scored_week(rows)
+    scored_by_week = []
+    last_scored = None
+    for row in rows:
+        scored = score_week(row)
+        scored_by_week.append(scored)
+        if scored["weight_hit"] is not None or scored["bf_hit"] is not None:
+            last_scored = row.get("week")
     bands = _phase_mark_area(rows)
     weight_target = []
     weight_actual = []
@@ -278,9 +249,9 @@ def spine_options(rows, current_week):
     protein = []
     fat = []
     carbs = []
-    for row in rows:
+    for index, row in enumerate(rows):
         week = row.get("week")
-        scored = score_week(row)
+        scored = scored_by_week[index]
         stop = last_scored is None or (week is not None and week > last_scored)
         target_w = _to_float(row.get("target_weight_kg"))
         weight_target.append(target_w)
@@ -293,9 +264,10 @@ def spine_options(rows, current_week):
         weight_actual.append(_actual_point(_to_float(row.get("actual_weight_kg")), scored["weight_hit"], stop))
         bf_target.append(_to_float(row.get("target_bf_percent")))
         bf_actual.append(_actual_point(_to_float(row.get("bf_percent")), scored["bf_hit"], stop))
-        protein.append(_macro_point(row, "protein_kcal", current_week))
-        fat.append(_macro_point(row, "fat_kcal", current_week))
-        carbs.append(_macro_point(row, "carbs_kcal", current_week))
+        protein_pt, fat_pt, carbs_pt = _macro_points(row, current_week)
+        protein.append(protein_pt)
+        fat.append(fat_pt)
+        carbs.append(carbs_pt)
 
     def axis(grid_index, show_labels=False):
         return {
@@ -345,7 +317,7 @@ def spine_options(rows, current_week):
         return series
 
     return {
-        "tooltip": {"trigger": "axis", "formatter": _spine_tooltip},
+        "tooltip": {"trigger": "axis"},
         "axisPointer": {"link": [{"xAxisIndex": "all"}]},
         "legend": {
             "top": 0,
