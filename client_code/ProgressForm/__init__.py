@@ -6,7 +6,7 @@ from anvil.google.drive import app_files
 import anvil.server
 from craftify_library.CustomComponents.ChartCard import ChartCard
 from craftify_library.CustomComponents.EChart import EChart
-from craftify_library.CraftifyUtils.echarts_theme import apply_craftify_echarts_theme
+from craftify_library.CraftifyUtils.echarts_theme import apply_craftify_echarts_theme, padded_value_axis
 from body_comp_tracker import Format, Layout
 
 
@@ -19,14 +19,14 @@ def _line(name, values, dashed=False):
     return series
 
 
-def _chart(title, subtitle, weeks, series, unit, height="300px"):
+def _chart(title, subtitle, weeks, series, unit, height="300px", y_axis=None):
     card = ChartCard(title=title, subtitle=subtitle)
     options = apply_craftify_echarts_theme({
         "tooltip": {"trigger": "axis"},
         "legend": {"top": 0, "right": 8},
         "grid": {"left": 48, "right": 16, "top": 32, "bottom": 28},
         "xAxis": {"type": "category", "data": weeks},
-        "yAxis": {"type": "value", "scale": True, "name": unit},
+        "yAxis": y_axis or {"type": "value", "scale": True, "name": unit},
         "dataZoom": [{"type": "inside"}],
         "series": series,
     })
@@ -68,11 +68,13 @@ class ProgressForm(ProgressFormTemplate):
             ],
             "%",
         )
+        kcal = [row.get("target_calories") for row in schedule]
         calories = _chart(
             "Calories", "Issued each week after the Sunday check-in",
             weeks,
-            [{"name": "kcal", "type": "bar", "data": [row.get("target_calories") for row in schedule]}],
+            [{"name": "kcal", "type": "bar", "data": kcal}],
             "kcal",
+            y_axis=padded_value_axis(kcal, name="kcal", floor=800, step=100, pad=250),
         )
         header = Layout.page_header(
             "Progress",
