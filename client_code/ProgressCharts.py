@@ -5,17 +5,20 @@ WEIGHT_LANE_KG = 0.4
 BF_LANE_PP = 0.6
 CHIP_WINDOW = 8
 FADE_OPACITY = 0.28
-HIT_COLOR = "#16a34a"
+HIT_COLOR = "#059669"
 MISS_COLOR = "#dc2626"
+PLAN_COLOR = "#94a3b8"
+WEIGHT_COLOR = "#1e3a5f"
+BF_COLOR = "#0f766e"
 PHASE_BAND = {
-    "cut": "rgba(244, 63, 94, 0.10)",
-    "reverse": "rgba(245, 158, 11, 0.10)",
-    "bulk": "rgba(45, 212, 191, 0.12)",
-    "recomp": "rgba(148, 163, 184, 0.10)",
+    "cut": "rgba(30, 58, 95, 0.07)",
+    "reverse": "rgba(217, 119, 6, 0.08)",
+    "bulk": "rgba(5, 150, 105, 0.08)",
+    "recomp": "rgba(148, 163, 184, 0.08)",
 }
-MACRO_COLORS = {"Protein": "#38bdf8", "Fat": "#f59e0b", "Carbs": "#a78bfa"}
-JOURNEY_SIZE = 8
-DEXA_SIZE = 14
+MACRO_COLORS = {"Protein": "#1e3a5f", "Fat": "#d97706", "Carbs": "#7dd3fc"}
+JOURNEY_SIZE = 11
+DEXA_SIZE = 16
 
 
 def _to_float(value):
