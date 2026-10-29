@@ -143,6 +143,12 @@ def test_tooltip_payload_includes_protein_and_kcal():
     assert point["kcal"] == 2060
 
 
+def test_journey_axis_keeps_a_single_point_in_view():
+    options = journey_options([{"week": 1, "weight": 79.9, "bf": 21.7, "dexa": False}])
+    assert options["yAxis"]["min"] < 21.7 < options["yAxis"]["max"]
+    assert options["xAxis"]["min"] < 79.9 < options["xAxis"]["max"]
+
+
 def test_journey_dexa_point_is_larger():
     points = journey_points(
         [

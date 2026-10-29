@@ -473,3 +473,18 @@ html.ipac-dark .nav-holder .content {
 html.ipac-dark .left-nav a.anvil-role-selected {
   background: var(--bc-soft);
 }
+
+.bc-progress-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--bc-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 860px) {
+  .bc-progress-charts {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

@@ -4,34 +4,60 @@ from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server
+from anvil.js import window
 from craftify_library.CustomComponents.ChartCard import ChartCard
 from craftify_library.CustomComponents.EChart import EChart
 from craftify_library.CraftifyUtils.echarts_theme import apply_craftify_echarts_theme, padded_value_axis
 from body_comp_tracker import Format, Layout
+from body_comp_tracker.ProgressCharts import (
+    journey_options,
+    journey_planned,
+    journey_points,
+    macro_stack,
+    spine_options,
+    week_chip,
+)
 
 
-def _line(name, values, dashed=False):
-    series = {"name": name, "type": "line", "connectNulls": False, "data": values}
-    if dashed:
-        series["lineStyle"] = {"type": "dashed"}
-    else:
-        series["showSymbol"] = False
-    return series
-
-
-def _chart(title, subtitle, weeks, series, unit, height="300px", y_axis=None):
+def _chart_card(title, subtitle, options, height="420px"):
     card = ChartCard(title=title, subtitle=subtitle)
-    options = apply_craftify_echarts_theme({
-        "tooltip": {"trigger": "axis"},
-        "legend": {"top": 0, "right": 8},
-        "grid": {"left": 48, "right": 16, "top": 32, "bottom": 28},
-        "xAxis": {"type": "category", "data": weeks},
-        "yAxis": y_axis or {"type": "value", "scale": True, "name": unit},
-        "dataZoom": [{"type": "inside"}],
-        "series": series,
-    })
-    card.mount(EChart(options=options, height=height))
+    card.mount(EChart(options=apply_craftify_echarts_theme(options), height=height))
     return Layout.flat(card)
+
+
+def _js_spine_tooltip():
+    return window.Function(
+        "params",
+        "if (!params || !params.length) return '';"
+        "var lines = [params[0].axisValue || ''];"
+        "var extra = null;"
+        "for (var i = 0; i < params.length; i++) {"
+        "  var item = params[i];"
+        "  var name = item.seriesName || '';"
+        "  if (name === 'Lane' || name === 'Lane width') continue;"
+        "  var data = item.data;"
+        "  if (extra == null && data && typeof data === 'object' && data.protein_g != null) extra = data;"
+        "  var value = item.value;"
+        "  if (value && typeof value === 'object' && 'value' in value) value = value.value;"
+        "  if (value == null) continue;"
+        "  lines.push(name + '  ' + value);"
+        "}"
+        "if (extra) {"
+        "  lines.push('P ' + extra.protein_g + 'g · F ' + extra.fat_g + 'g · C ' + extra.carbs_g + 'g');"
+        "  lines.push(extra.kcal + ' kcal');"
+        "}"
+        "return lines.join('<br/>');",
+    )
+
+
+def _kcal_axis(rows):
+    values = []
+    for row in rows:
+        stack = macro_stack(row)
+        values.append(stack["kcal"] if stack else None)
+    axis = padded_value_axis(values, name="kcal", floor=800, step=100, pad=250)
+    axis["gridIndex"] = 2
+    return axis
 
 
 class ProgressForm(ProgressFormTemplate):
@@ -48,42 +74,33 @@ class ProgressForm(ProgressFormTemplate):
                 full_width_row=True,
             )
             return
-        weeks = ["W%s" % row.get("week") for row in schedule]
-        weight = _chart(
-            "Weight", "Weekly average vs plan target",
-            weeks,
-            [
-                _line("Target", [row.get("target_weight_kg") for row in schedule]),
-                _line("Actual", [row.get("actual_weight_kg") for row in schedule], dashed=True),
-            ],
-            "kg",
-            height="320px",
-        )
-        body_fat = _chart(
-            "Body fat", "Navy estimate vs plan target",
-            weeks,
-            [
-                _line("Target", [row.get("target_bf_percent") for row in schedule]),
-                _line("Actual", [row.get("bf_percent") for row in schedule], dashed=True),
-            ],
-            "%",
-        )
-        kcal = [row.get("target_calories") for row in schedule]
-        calories = _chart(
-            "Calories", "Issued each week after the Sunday check-in",
-            weeks,
-            [{"name": "kcal", "type": "bar", "data": kcal}],
-            "kcal",
-            y_axis=padded_value_axis(kcal, name="kcal", floor=800, step=100, pad=250),
+        current_week = state.get("current_week") or 1
+        chip = week_chip(schedule, current_week)
+        spine = spine_options(schedule, current_week)
+        spine["yAxis"][2] = _kcal_axis(schedule)
+        spine["tooltip"]["formatter"] = _js_spine_tooltip()
+        journey = journey_options(
+            journey_points(schedule, state.get("dexa_weeks")),
+            journey_planned(schedule),
         )
         header = Layout.page_header(
             "Progress",
             eyebrow=Format.eyebrow(state),
-            description="Weight, body fat, and weekly calories across the whole plan. Scroll inside a chart to zoom.",
+            description="Weight, body fat, and issued macros on one week spine. Green hits the lane; red misses.",
             actions=(Layout.button("Weekly tracker", self._open_tracker),),
         )
+        summary = Layout.html(
+            '<p class="bc-progress-chip"><span class="bc-macros-chip">%s</span> recent logged weeks, scored on weight</p>'
+            % Layout.esc(chip)
+        )
+        charts = Layout.grid(
+            "minmax(0, 1.45fr) minmax(280px, 0.75fr)",
+            _chart_card("Week spine", "Phase bands · hit or miss · faded forecast", spine),
+            _chart_card("Weight × body fat", "Each point is a week. Hollow marks are DEXA.", journey),
+        )
+        charts.dom_nodes["grid"].classList.add("bc-progress-charts")
         self.add_component(
-            Layout.stack(header, weight, Layout.grid("repeat(2, minmax(0, 1fr))", body_fat, calories)),
+            Layout.stack(header, summary, charts),
             full_width_row=True,
         )
 

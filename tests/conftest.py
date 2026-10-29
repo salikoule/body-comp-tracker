@@ -23,4 +23,14 @@ def _stub_anvil():
     sys.modules["anvil.tables"] = anvil.tables
 
 
+def _stub_routing():
+    if "routing" in sys.modules:
+        return
+    routing = ModuleType("routing")
+    routing.router = ModuleType("routing.router")
+    sys.modules["routing"] = routing
+    sys.modules["routing.router"] = routing.router
+
+
 _stub_anvil()
+_stub_routing()

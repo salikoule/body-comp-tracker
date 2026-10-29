@@ -347,7 +347,11 @@ def spine_options(rows, current_week):
     return {
         "tooltip": {"trigger": "axis", "formatter": _spine_tooltip},
         "axisPointer": {"link": [{"xAxisIndex": "all"}]},
-        "legend": {"top": 0, "right": 8},
+        "legend": {
+            "top": 0,
+            "right": 8,
+            "data": ["Target", "Weight", "BF target", "Body fat", "Protein", "Fat", "Carbs"],
+        },
         "grid": [
             {"left": 52, "right": 16, "top": 36, "height": "22%"},
             {"left": 52, "right": 16, "top": "38%", "height": "22%"},
@@ -398,12 +402,43 @@ def spine_options(rows, current_week):
     }
 
 
-def journey_options(points):
+def _journey_axis(values, name, min_span):
+    nums = [_to_float(value) for value in values or []]
+    nums = [value for value in nums if value is not None]
+    axis = {"type": "value", "name": name, "scale": True}
+    if not nums:
+        return axis
+    low, high = min(nums), max(nums)
+    span = max(high - low, min_span)
+    pad = span * 0.2
+    axis["min"] = round(low - pad, 2)
+    axis["max"] = round(high + pad, 2)
+    return axis
+
+
+def journey_planned(rows):
+    points = []
+    for row in rows or []:
+        weight = _to_float(row.get("target_weight_kg"))
+        bf = _to_float(row.get("target_bf_percent"))
+        if weight is None or bf is None:
+            continue
+        points.append({"week": row.get("week"), "weight": weight, "bf": bf})
+    return points
+
+
+def journey_options(points, planned=None):
     data = []
+    xs = []
+    ys = []
     for point in points or []:
         dexa = bool(point.get("dexa"))
+        weight = point.get("weight")
+        bf = point.get("bf")
+        xs.append(weight)
+        ys.append(bf)
         item = {
-            "value": [point.get("weight"), point.get("bf")],
+            "value": [weight, bf],
             "symbolSize": DEXA_SIZE if dexa else JOURNEY_SIZE,
             "symbol": "emptyCircle" if dexa else "circle",
             "week": point.get("week"),
@@ -416,17 +451,39 @@ def journey_options(points):
                 "borderWidth": 2,
             }
         data.append(item)
+    planned_data = []
+    for point in planned or []:
+        weight = point.get("weight")
+        bf = point.get("bf")
+        xs.append(weight)
+        ys.append(bf)
+        planned_data.append({
+            "value": [weight, bf],
+            "week": point.get("week"),
+            "symbol": "none",
+        })
+    series = []
+    if planned_data:
+        series.append({
+            "name": "Plan",
+            "type": "line",
+            "data": planned_data,
+            "symbol": "none",
+            "lineStyle": {"type": "dashed", "opacity": 0.45},
+        })
+    series.append({
+        "name": "Journey",
+        "type": "line",
+        "data": data,
+        "symbol": "circle",
+        "symbolSize": JOURNEY_SIZE,
+        "connectNulls": False,
+    })
     return {
         "tooltip": {"trigger": "item"},
+        "legend": {"top": 0, "right": 8},
         "grid": {"left": 48, "right": 20, "top": 28, "bottom": 40},
-        "xAxis": {"type": "value", "name": "kg", "scale": True},
-        "yAxis": {"type": "value", "name": "%", "scale": True},
-        "series": [{
-            "name": "Journey",
-            "type": "line",
-            "data": data,
-            "symbol": "circle",
-            "symbolSize": JOURNEY_SIZE,
-            "connectNulls": False,
-        }],
+        "xAxis": _journey_axis(xs, "kg", 2),
+        "yAxis": _journey_axis(ys, "%", 2),
+        "series": series,
     }
