@@ -1,9 +1,21 @@
-"""Pure Progress scoring helpers. No Anvil imports so pytest can run them."""
+"""Pure Progress scoring and ECharts option builders. No Anvil imports."""
 
 SCORED_STATUSES = ("logged", "excluded", "partial")
 WEIGHT_LANE_KG = 0.4
 BF_LANE_PP = 0.6
 CHIP_WINDOW = 8
+FADE_OPACITY = 0.28
+HIT_COLOR = "#16a34a"
+MISS_COLOR = "#dc2626"
+PHASE_BAND = {
+    "cut": "rgba(244, 63, 94, 0.10)",
+    "reverse": "rgba(245, 158, 11, 0.10)",
+    "bulk": "rgba(45, 212, 191, 0.12)",
+    "recomp": "rgba(148, 163, 184, 0.10)",
+}
+MACRO_COLORS = {"Protein": "#38bdf8", "Fat": "#f59e0b", "Carbs": "#a78bfa"}
+JOURNEY_SIZE = 8
+DEXA_SIZE = 14
 
 
 def _to_float(value):
@@ -131,3 +143,290 @@ def fade_after(values, current_week):
             "faded": False if current_week is None else week > current_week,
         })
     return faded
+
+
+def _week_label(week):
+    return "W%s" % week
+
+
+def _is_future(week, current_week):
+    return current_week is not None and week is not None and week > current_week
+
+
+def _phase_ranges(rows):
+    ranges = []
+    start = None
+    current = None
+    last_week = None
+    for row in rows or []:
+        phase = row.get("phase") or "cut"
+        week = row.get("week")
+        if start is None:
+            start = week
+            current = phase
+        elif phase != current:
+            ranges.append((start, last_week, current))
+            start = week
+            current = phase
+        last_week = week
+    if start is not None:
+        ranges.append((start, last_week, current))
+    return ranges
+
+
+def _phase_mark_area(rows):
+    data = []
+    for start, end, phase in _phase_ranges(rows):
+        data.append([
+            {
+                "xAxis": _week_label(start),
+                "itemStyle": {"color": PHASE_BAND.get(phase, PHASE_BAND["recomp"])},
+            },
+            {"xAxis": _week_label(end)},
+        ])
+    if not data:
+        return None
+    return {"silent": True, "data": data}
+
+
+def _last_scored_week(rows):
+    last = None
+    for row in rows or []:
+        scored = score_week(row)
+        if scored["weight_hit"] is not None or scored["bf_hit"] is not None:
+            last = row.get("week")
+    return last
+
+
+def _hit_color(hit):
+    if hit is True:
+        return HIT_COLOR
+    if hit is False:
+        return MISS_COLOR
+    return None
+
+
+def _actual_point(value, hit, stop):
+    if stop or value is None:
+        return None
+    point = {"value": value}
+    color = _hit_color(hit)
+    if color:
+        point["itemStyle"] = {"color": color}
+    return point
+
+
+def _macro_point(row, field, current_week):
+    stack = macro_stack(row)
+    if stack is None:
+        return None
+    point = {
+        "value": stack[field],
+        "protein_g": stack["protein_g"],
+        "fat_g": stack["fat_g"],
+        "carbs_g": stack["carbs_g"],
+        "kcal": stack["kcal"],
+    }
+    if _is_future(row.get("week"), current_week):
+        point["itemStyle"] = {"opacity": FADE_OPACITY}
+    return point
+
+
+def _spine_tooltip(params):
+    if not params:
+        return ""
+    items = params if isinstance(params, list) else [params]
+    first = items[0] if items else {}
+    title = ""
+    if isinstance(first, dict):
+        title = first.get("axisValue") or ""
+    lines = [str(title)] if title else []
+    extras = None
+    skip = {"Lane", "Lane width"}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("seriesName") or ""
+        if name in skip:
+            continue
+        data = item.get("data")
+        if extras is None and isinstance(data, dict) and data.get("protein_g") is not None:
+            extras = data
+        value = item.get("value")
+        if isinstance(value, dict):
+            value = value.get("value")
+        if value is None:
+            continue
+        lines.append("%s  %s" % (name, value))
+    if extras:
+        lines.append("P %sg · F %sg · C %sg" % (extras.get("protein_g"), extras.get("fat_g"), extras.get("carbs_g")))
+        lines.append("%s kcal" % extras.get("kcal"))
+    return "\n".join(lines)
+
+
+def spine_options(rows, current_week):
+    rows = rows or []
+    weeks = [_week_label(row.get("week")) for row in rows]
+    last_scored = _last_scored_week(rows)
+    bands = _phase_mark_area(rows)
+    weight_target = []
+    weight_actual = []
+    lane_low = []
+    lane_span = []
+    bf_target = []
+    bf_actual = []
+    protein = []
+    fat = []
+    carbs = []
+    for row in rows:
+        week = row.get("week")
+        scored = score_week(row)
+        stop = last_scored is None or (week is not None and week > last_scored)
+        target_w = _to_float(row.get("target_weight_kg"))
+        weight_target.append(target_w)
+        if target_w is None:
+            lane_low.append(None)
+            lane_span.append(None)
+        else:
+            lane_low.append(target_w - WEIGHT_LANE_KG)
+            lane_span.append(WEIGHT_LANE_KG * 2)
+        weight_actual.append(_actual_point(_to_float(row.get("actual_weight_kg")), scored["weight_hit"], stop))
+        bf_target.append(_to_float(row.get("target_bf_percent")))
+        bf_actual.append(_actual_point(_to_float(row.get("bf_percent")), scored["bf_hit"], stop))
+        protein.append(_macro_point(row, "protein_kcal", current_week))
+        fat.append(_macro_point(row, "fat_kcal", current_week))
+        carbs.append(_macro_point(row, "carbs_kcal", current_week))
+
+    def axis(grid_index, show_labels=False):
+        return {
+            "type": "category",
+            "data": weeks,
+            "gridIndex": grid_index,
+            "axisLabel": {"show": show_labels},
+            "axisTick": {"show": False},
+        }
+
+    def line(name, data, grid_index, dashed=False, color=None, mark_area=None, silent=False):
+        series = {
+            "name": name,
+            "type": "line",
+            "data": data,
+            "xAxisIndex": grid_index,
+            "yAxisIndex": grid_index,
+            "connectNulls": False,
+            "showSymbol": not dashed,
+        }
+        if dashed:
+            series["lineStyle"] = {"type": "dashed"}
+            series["showSymbol"] = False
+        if color:
+            series["itemStyle"] = {"color": color}
+            series.setdefault("lineStyle", {})["color"] = color
+        if mark_area:
+            series["markArea"] = mark_area
+        if silent:
+            series["silent"] = True
+            series["tooltip"] = {"show": False}
+            series["symbol"] = "none"
+        return series
+
+    def bars(name, data, mark_area=None):
+        series = {
+            "name": name,
+            "type": "bar",
+            "stack": "macros",
+            "data": data,
+            "xAxisIndex": 2,
+            "yAxisIndex": 2,
+            "itemStyle": {"color": MACRO_COLORS[name]},
+        }
+        if mark_area:
+            series["markArea"] = mark_area
+        return series
+
+    return {
+        "tooltip": {"trigger": "axis", "formatter": _spine_tooltip},
+        "axisPointer": {"link": [{"xAxisIndex": "all"}]},
+        "legend": {"top": 0, "right": 8},
+        "grid": [
+            {"left": 52, "right": 16, "top": 36, "height": "22%"},
+            {"left": 52, "right": 16, "top": "38%", "height": "22%"},
+            {"left": 52, "right": 16, "top": "66%", "height": "22%"},
+        ],
+        "xAxis": [axis(0), axis(1), axis(2, show_labels=True)],
+        "yAxis": [
+            {"type": "value", "name": "kg", "scale": True, "gridIndex": 0},
+            {"type": "value", "name": "%", "scale": True, "gridIndex": 1},
+            {"type": "value", "name": "kcal", "scale": False, "gridIndex": 2},
+        ],
+        "dataZoom": [{"type": "inside", "xAxisIndex": [0, 1, 2]}],
+        "series": [
+            line("Target", weight_target, 0, dashed=True, mark_area=bands),
+            {
+                "name": "Lane",
+                "type": "line",
+                "data": lane_low,
+                "xAxisIndex": 0,
+                "yAxisIndex": 0,
+                "stack": "lane",
+                "symbol": "none",
+                "silent": True,
+                "tooltip": {"show": False},
+                "lineStyle": {"opacity": 0},
+                "itemStyle": {"opacity": 0},
+            },
+            {
+                "name": "Lane width",
+                "type": "line",
+                "data": lane_span,
+                "xAxisIndex": 0,
+                "yAxisIndex": 0,
+                "stack": "lane",
+                "symbol": "none",
+                "silent": True,
+                "tooltip": {"show": False},
+                "lineStyle": {"opacity": 0},
+                "areaStyle": {"opacity": 0.12, "color": "#94a3b8"},
+            },
+            line("Weight", weight_actual, 0),
+            line("BF target", bf_target, 1, dashed=True, mark_area=bands),
+            line("Body fat", bf_actual, 1),
+            bars("Protein", protein, mark_area=bands),
+            bars("Fat", fat),
+            bars("Carbs", carbs),
+        ],
+    }
+
+
+def journey_options(points):
+    data = []
+    for point in points or []:
+        dexa = bool(point.get("dexa"))
+        item = {
+            "value": [point.get("weight"), point.get("bf")],
+            "symbolSize": DEXA_SIZE if dexa else JOURNEY_SIZE,
+            "symbol": "emptyCircle" if dexa else "circle",
+            "week": point.get("week"),
+            "dexa": dexa,
+        }
+        if dexa:
+            item["itemStyle"] = {
+                "color": "transparent",
+                "borderColor": "#0f766e",
+                "borderWidth": 2,
+            }
+        data.append(item)
+    return {
+        "tooltip": {"trigger": "item"},
+        "grid": {"left": 48, "right": 20, "top": 28, "bottom": 40},
+        "xAxis": {"type": "value", "name": "kg", "scale": True},
+        "yAxis": {"type": "value", "name": "%", "scale": True},
+        "series": [{
+            "name": "Journey",
+            "type": "line",
+            "data": data,
+            "symbol": "circle",
+            "symbolSize": JOURNEY_SIZE,
+            "connectNulls": False,
+        }],
+    }

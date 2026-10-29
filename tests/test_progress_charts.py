@@ -4,7 +4,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "client_code"))
 
-from ProgressCharts import fade_after, journey_points, macro_stack, score_week, week_chip
+from ProgressCharts import (
+    fade_after,
+    journey_options,
+    journey_points,
+    macro_stack,
+    score_week,
+    spine_options,
+    week_chip,
+)
 
 
 def _row(**overrides):
@@ -86,3 +94,62 @@ def test_fade_after_marks_weeks_past_current():
     faded = fade_after([10, 20, 30, 40], current_week=2)
     assert [item["faded"] for item in faded] == [False, False, True, True]
     assert [item["value"] for item in faded] == [10, 20, 30, 40]
+
+
+def _series_by_name(options, name):
+    for series in options["series"]:
+        if series.get("name") == name:
+            return series
+    raise AssertionError("missing series %s" % name)
+
+
+def _first_mark_area(options):
+    for series in options["series"]:
+        area = series.get("markArea")
+        if area and area.get("data"):
+            return area["data"]
+    raise AssertionError("no markArea data")
+
+
+def test_spine_links_three_grids():
+    options = spine_options([_row(week=1), _row(week=2)], current_week=1)
+    assert len(options["grid"]) == 3
+    assert options["dataZoom"][0]["xAxisIndex"] == [0, 1, 2]
+
+
+def test_phase_change_makes_two_mark_area_ranges():
+    options = spine_options(
+        [
+            _row(week=1, phase="cut"),
+            _row(week=2, phase="cut"),
+            _row(week=3, phase="reverse"),
+            _row(week=4, phase="reverse"),
+        ],
+        current_week=2,
+    )
+    assert len(_first_mark_area(options)) == 2
+
+
+def test_future_macro_bars_fade():
+    options = spine_options([_row(week=1), _row(week=2)], current_week=1)
+    future = _series_by_name(options, "Protein")["data"][1]
+    assert future["itemStyle"]["opacity"] == 0.28
+
+
+def test_tooltip_payload_includes_protein_and_kcal():
+    options = spine_options([_row(week=1, protein_g=180, fat_g=60, carbs_g=200)], current_week=1)
+    point = _series_by_name(options, "Protein")["data"][0]
+    assert point["protein_g"] == 180
+    assert point["kcal"] == 2060
+
+
+def test_journey_dexa_point_is_larger():
+    points = journey_points(
+        [
+            _row(week=1, actual_weight_kg=81.5, bf_percent=18.0),
+            _row(week=9, actual_weight_kg=79.0, bf_percent=16.4),
+        ],
+        dexa_weeks=[9],
+    )
+    data = journey_options(points)["series"][0]["data"]
+    assert data[1]["symbolSize"] > data[0]["symbolSize"]
