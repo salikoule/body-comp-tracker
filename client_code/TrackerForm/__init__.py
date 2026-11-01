@@ -19,6 +19,14 @@ STATUS = {
     "missed": ("Missed", "danger"),
     "excluded": ("Excluded", "muted"),
 }
+DEXA_TIP_ROWS = (
+    ("Body fat", "bf_percent", 1, "%"),
+    ("Fat mass", "fat_mass_kg", 1, "kg"),
+    ("Lean mass", "lean_mass_kg", 1, "kg"),
+    ("Fat-free mass", "ffm_kg", 1, "kg"),
+    ("Visceral fat", "vat_g", 0, "g"),
+    ("RMR", "rmr_kcal", 0, "kcal"),
+)
 TABULATOR_OPTIONS = {
     "pagination": False,
     "index": "week",
@@ -54,10 +62,41 @@ def _num(value, digits):
 
 
 def _week_fmt(cell, **params):
-    label = '<span class="bc-week-badge">%s</span>' % Layout.esc(_value(cell) or "")
-    if _data(cell).get("has_dexa"):
-        return '%s<span class="bc-dexa-mark">DEXA</span>' % label
-    return label
+    klass = "bc-week-badge is-dexa" if _data(cell).get("dexa") else "bc-week-badge"
+    return '<span class="%s">%s</span>' % (klass, Layout.esc(_value(cell) or ""))
+
+
+def dexa_tooltip(scan):
+    rows = []
+    for label, key, digits, unit in DEXA_TIP_ROWS:
+        if scan.get(key) is not None:
+            value = Format.percent(scan.get(key)) if unit == "%" else Format.number(scan.get(key), digits, unit)
+            rows.append("<dt>%s</dt><dd>%s</dd>" % (label, value))
+    return (
+        '<div class="bc-dexa-tip"><div class="bc-dexa-tip-h"><i></i>DEXA scan<span>%s</span></div><dl>%s</dl></div>'
+        % (Format.date_label(scan.get("measured_on")), "".join(rows))
+    )
+
+
+def _week_tip(event, cell, on_rendered=None):
+    scan = _data(cell).get("dexa")
+    return dexa_tooltip(dict(scan)) if scan else False
+
+
+def _dexa_by_week(state):
+    scans = {}
+    for scan in state.get("dexa_scans") or []:
+        if scan.get("week_index"):
+            scans[int(scan["week_index"])] = scan
+    if state.get("dexa_bf_percent") is not None:
+        for week in state.get("dexa_weeks") or []:
+            scans.setdefault(int(week), {
+                "measured_on": state.get("dexa_measured_on"),
+                "bf_percent": state.get("dexa_bf_percent"),
+                "ffm_kg": state.get("dexa_ffm_kg"),
+                "rmr_kcal": state.get("dexa_rmr_kcal"),
+            })
+    return scans
 
 
 def _phase_fmt(cell, **params):
@@ -151,7 +190,7 @@ def _edit_fmt(cell, **params):
 
 
 COLUMNS = [
-    {"title": "Week", "field": "weekLabel", "width": 64, "formatter": _week_fmt, "frozen": True},
+    {"title": "Week", "field": "weekLabel", "width": 64, "formatter": _week_fmt, "tooltip": _week_tip, "frozen": True},
     {"title": "Week of", "field": "weekDate", "width": 108, "frozen": True},
     {"title": "Phase", "field": "phase", "hozAlign": "center", "width": 100, "formatter": _phase_fmt},
     {"title": "Weight (kg)", "headerHozAlign": "center", "columns": [
@@ -197,7 +236,7 @@ class TrackerForm(TrackerFormTemplate):
             )
             return
         self._current = state.get("current_week") or 1
-        self._dexa_weeks = {int(week) for week in (state.get("dexa_weeks") or []) if week}
+        self._dexa = _dexa_by_week(state)
         row = Format.current_row(state)
         header = Layout.page_header(
             "Weekly tracker",
@@ -229,7 +268,7 @@ class TrackerForm(TrackerFormTemplate):
             item = dict(row)
             item["weekLabel"] = "W%s" % row.get("week")
             item["weekDate"] = Format.date_label(row.get("week_start"))
-            item["has_dexa"] = row.get("week") in self._dexa_weeks
+            item["dexa"] = self._dexa.get(row.get("week"))
             rows.append(item)
         table = Tabulator()
         options = dict(TABULATOR_OPTIONS)

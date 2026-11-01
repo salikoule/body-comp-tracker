@@ -11,6 +11,24 @@ from body_comp_tracker import Format, Layout
 
 SEX = (("Male", "male"), ("Female", "female"))
 OUTCOME = (("Lose fat", "lose_fat"), ("Gain muscle", "gain_muscle"), ("Recomp", "recomp"))
+DEXA_COLUMNS = (
+    ("Scan date", "measured_on", 0, ""),
+    ("Week", "week_index", 0, ""),
+    ("Body fat", "bf_percent", 1, "%"),
+    ("Fat mass", "fat_mass_kg", 1, "kg"),
+    ("Lean mass", "lean_mass_kg", 1, "kg"),
+    ("Bone", "bmc_kg", 2, "kg"),
+    ("Fat-free mass", "ffm_kg", 1, "kg"),
+    ("Visceral fat", "vat_g", 0, "g"),
+    ("RMR", "rmr_kcal", 0, "kcal"),
+    ("File", "filename", 0, ""),
+)
+DEXA_LABELS = {
+    "dexa_measured_on": "scan date",
+    "dexa_bf_percent": "body fat",
+    "dexa_ffm_kg": "fat-free mass",
+    "dexa_rmr_kcal": "RMR",
+}
 
 
 def _text(value):
@@ -63,9 +81,18 @@ class ProfileForm(ProfileFormTemplate):
         self.dexa_rmr = TextBox(type="number", placeholder="e.g. 1550", text=_text(s.get("dexa_rmr_kcal")))
         self.dexa_file = FileDrop(
             title="Drop a DEXA scan here",
-            hint="or click to browse · PDF or photo",
+            hint="or click to browse · PDF or photo · read automatically with your AI key",
             file_types="application/pdf,image/png,image/jpeg",
         )
+        self.dexa_file.set_event_handler("change", self._read_dexa)
+        self._dexa_extra = {}
+        self.dexa_status = Layout.html('<p class="bc-dexa-status" anvil-name="text"></p>')
+        self.dexa_store = Layout.button("Store scan and recalibrate", self._store_dexa, primary=True)
+        for box in (self.dexa_bf, self.dexa_ffm, self.dexa_rmr):
+            box.set_event_handler("change", self._sync_dexa_store)
+            box.set_event_handler("lost_focus", self._sync_dexa_store)
+        self.dexa_on.set_event_handler("change", self._sync_dexa_store)
+        self._sync_dexa_store()
 
         header = Layout.page_header(
             "Profile & plan" if self._has_plan else "Set up your plan",
@@ -108,13 +135,11 @@ class ProfileForm(ProfileFormTemplate):
                 Layout.field("Measured RMR (kcal)", self.dexa_rmr),
             ),
             Layout.field("Scan file", self.dexa_file),
-            Layout.grid(
-                "repeat(2, max-content)",
-                Layout.button("Read file", self._read_dexa),
-                Layout.button("Store file and recalibrate", self._store_dexa, primary=True),
-            ),
-            self._dexa_history(s),
+            self.dexa_status,
+            Layout.grid("max-content", self.dexa_store),
         )
+        records = Layout.section("DEXA records", "Every stored scan. The latest one anchors the plan.", padded=False)
+        Layout.body(records, Layout.html(self._dexa_table(s)))
 
         goal = Layout.section("Training and goal")
         Layout.body(
@@ -130,29 +155,36 @@ class ProfileForm(ProfileFormTemplate):
             Layout.button("Save plan", self._save, primary=True),
         )
 
-        parts = [header, about, tape, dexa, goal]
+        parts = [header, about, tape, dexa, records, goal]
         if self._has_plan:
             parts.append(self._history_card(s))
         self.add_component(Layout.stack(*parts), full_width_row=True)
 
-    def _dexa_history(self, s):
+    def _dexa_table(self, s):
         scans = s.get("dexa_scans") or []
         if not scans:
-            return Layout.note("No scan file stored yet.")
-        items = []
-        for scan in scans:
-            items.append(
-                "W%s · %s · %s BF · FFM %s · RMR %s · %s"
-                % (
-                    scan.get("week_index") or "—",
-                    Format.date_label(scan.get("measured_on")),
-                    Format.percent(scan.get("bf_percent")),
-                    Format.number(scan.get("ffm_kg"), 1, "kg"),
-                    Format.number(scan.get("rmr_kcal"), 0, "kcal"),
-                    scan.get("filename") or "file",
-                )
-            )
-        return Layout.note("Stored scans: " + " | ".join(items))
+            return '<p class="bc-dexa-empty">No scans stored yet. Drop a report above.</p>'
+        head = "".join("<th>%s</th>" % label for label, _key, _digits, _unit in DEXA_COLUMNS)
+        body = []
+        for scan in reversed(scans):
+            cells = []
+            for _label, key, digits, unit in DEXA_COLUMNS:
+                if key == "measured_on":
+                    text = Format.date_label(scan.get(key))
+                elif key == "week_index":
+                    text = "W%s" % scan.get(key) if scan.get(key) else ""
+                elif key == "filename":
+                    text = Layout.esc(scan.get(key) or "")
+                elif scan.get(key) is None:
+                    text = ""
+                elif unit == "%":
+                    text = Format.percent(scan.get(key), digits)
+                else:
+                    text = Format.number(scan.get(key), digits, unit)
+                cells.append("<td>%s</td>" % (text or '<span class="bc-empty">—</span>'))
+            body.append("<tr>%s</tr>" % "".join(cells))
+        return '<div class="bc-dexa-table"><table><thead><tr>%s</tr></thead><tbody>%s</tbody></table></div>' % (
+            head, "".join(body))
 
     def _history_card(self, s):
         card = Layout.section(
@@ -227,15 +259,34 @@ class ProfileForm(ProfileFormTemplate):
             raise ValueError("Choose a date of birth and a plan start.")
         return payload
 
-    def _apply_extract(self, parsed):
-        if parsed.get("dexa_measured_on"):
-            self.dexa_on.date = _as_date(parsed.get("dexa_measured_on"))
-        if parsed.get("dexa_bf_percent") is not None:
-            self.dexa_bf.text = _text(parsed.get("dexa_bf_percent"))
-        if parsed.get("dexa_ffm_kg") is not None:
-            self.dexa_ffm.text = _text(parsed.get("dexa_ffm_kg"))
-        if parsed.get("dexa_rmr_kcal") is not None:
-            self.dexa_rmr.text = _text(parsed.get("dexa_rmr_kcal"))
+    def _apply_extract(self, values):
+        self.dexa_on.date = _as_date(values.get("dexa_measured_on"))
+        self.dexa_bf.text = _text(values.get("dexa_bf_percent"))
+        self.dexa_ffm.text = _text(values.get("dexa_ffm_kg"))
+        self.dexa_rmr.text = _text(values.get("dexa_rmr_kcal"))
+
+    def _dexa_values(self):
+        values = dict(self._dexa_extra)
+        values["dexa_measured_on"] = self.dexa_on.date
+        for key, box in (("dexa_bf_percent", self.dexa_bf), ("dexa_ffm_kg", self.dexa_ffm), ("dexa_rmr_kcal", self.dexa_rmr)):
+            try:
+                values[key] = self._number(box, required=False)
+            except ValueError:
+                values[key] = None
+        return values
+
+    def _missing_dexa(self):
+        values = self._dexa_values()
+        return [label for key, label in DEXA_LABELS.items() if values.get(key) is None]
+
+    def _set_dexa_status(self, text, tone="muted"):
+        node = self.dexa_status.dom_nodes["text"]
+        node.textContent = text or ""
+        node.className = "bc-dexa-status is-%s" % tone
+
+    def _sync_dexa_store(self, **event_args):
+        ready = self.dexa_file.file is not None and not self._missing_dexa()
+        self.dexa_store.enabled = ready
 
     def _save(self, **event_args):
         try:
@@ -255,38 +306,44 @@ class ProfileForm(ProfileFormTemplate):
 
     def _read_dexa(self, **event_args):
         media = self.dexa_file.file
+        self._dexa_extra = {}
         if media is None:
-            Notification("Choose a DEXA file first.", style="warning").show()
+            self._set_dexa_status("")
+            self._sync_dexa_store()
             return
+        self.dexa_store.enabled = False
+        self._set_dexa_status("Reading %s…" % (getattr(media, "name", None) or "the scan"))
         try:
-            parsed = anvil.server.call("bodycomp_read_dexa", media)
+            result = anvil.server.call("bodycomp_read_dexa", media)
         except Exception as e:
-            alert(str(e), title="Could not read scan")
+            self._set_dexa_status(str(e), "bad")
+            self._sync_dexa_store()
             return
-        self._apply_extract(parsed)
-        if not any(parsed.get(key) for key in ("dexa_bf_percent", "dexa_ffm_kg", "dexa_rmr_kcal")):
-            Notification("File stored fields were empty. Enter the numbers from the report.", style="warning").show()
-            return
-        Notification("Filled DEXA fields from the file. Check them, then store or save the plan.", style="success").show()
+        values = result.get("values") or {}
+        self._dexa_extra = dict((key, values.get(key)) for key in values if not key.startswith("dexa_"))
+        self._apply_extract(values)
+        missing = self._missing_dexa()
+        if result.get("error"):
+            self._set_dexa_status(result["error"], "bad")
+        elif missing:
+            self._set_dexa_status("Read the scan, but could not find the %s. Type %s from the report to continue."
+                                  % (", ".join(missing), "it" if len(missing) == 1 else "them"), "warn")
+        else:
+            self._set_dexa_status("Read every metric from the scan. Check them, then store.", "ok")
+        self._sync_dexa_store()
 
     def _store_dexa(self, **event_args):
         media = self.dexa_file.file
-        if media is None:
-            Notification("Choose a DEXA file first.", style="warning").show()
+        missing = self._missing_dexa()
+        if media is None or missing:
+            self._set_dexa_status("Add the %s first." % ", ".join(missing or ["scan file"]), "warn")
             return
         try:
-            payload = {
-                "dexa_measured_on": self.dexa_on.date,
-                "dexa_bf_percent": self._number(self.dexa_bf, required=False),
-                "dexa_ffm_kg": self._number(self.dexa_ffm, required=False),
-                "dexa_rmr_kcal": self._number(self.dexa_rmr, required=False),
-            }
-            state = anvil.server.call("bodycomp_store_dexa", media, payload)
+            state = anvil.server.call("bodycomp_store_dexa", media, self._dexa_values())
         except Exception as e:
             alert(str(e), title="Could not store scan")
             return
-        self._apply_extract(state.get("extract") or {})
-        Notification("Scan stored. Targets were recalibrated. Issued weekly calories were left as issued.",
+        Notification("Scan stored. The plan was recalibrated from it. Issued weekly calories were left as issued.",
                      title="DEXA saved", style="success", timeout=6).show()
         self._has_plan = bool(state.get("has_plan"))
         self._build(state if self._has_plan else {})

@@ -14,7 +14,7 @@ from craftify_library.BodyCoach.plan import macro_targets, navy_bf, propose_plan
 from craftify_library.BodyCoach.plan_kwargs import plan_kwargs_from_profile
 from craftify_library.BodyCoach.schedule import average_weight_in_week, build_schedule, week_index_for
 from craftify_library.CraftifyAuth import AuthError, craftify_require_user
-from DexaExtract import extract_from_bytes
+from DexaExtract import EXTRA_METRICS, REQUIRED, DexaReadError, empty_result, extract_from_bytes, missing_required
 from plan_history import dexa_weeks, merge_issued_calories
 
 
@@ -194,16 +194,22 @@ def _dump_scans(user):
     rows = []
     for scan in _dexa_rows(user):
         media = _cell(scan, "file")
-        rows.append(
-            {
-                "measured_on": _iso(_cell(scan, "measured_on")),
-                "week_index": _cell(scan, "week_index"),
-                "bf_percent": _cell(scan, "bf_percent"),
-                "ffm_kg": _cell(scan, "ffm_kg"),
-                "rmr_kcal": _cell(scan, "rmr_kcal"),
-                "filename": getattr(media, "name", None) if media is not None else None,
-            }
-        )
+        try:
+            extra = json.loads(_cell(scan, "extracted_json") or "{}")
+        except (TypeError, ValueError):
+            extra = {}
+        item = {
+            "measured_on": _iso(_cell(scan, "measured_on")),
+            "week_index": _cell(scan, "week_index"),
+            "bf_percent": _cell(scan, "bf_percent"),
+            "ffm_kg": _cell(scan, "ffm_kg"),
+            "rmr_kcal": _cell(scan, "rmr_kcal"),
+            "filename": getattr(media, "name", None) if media is not None else None,
+        }
+        for key in EXTRA_METRICS:
+            item[key] = extra.get(key)
+        rows.append(item)
+    rows.sort(key=lambda item: item["measured_on"] or "")
     return rows
 
 
@@ -301,6 +307,7 @@ def bodycomp_get_plan():
     if profile is None:
         return {"has_plan": False, "email": user["email"]}
     _backfill_coach_state(profile)
+    _heal_dexa_phases(profile)
     return _dump(profile, weights, logs)
 
 
@@ -344,18 +351,13 @@ def bodycomp_save_plan(payload: dict):
         proposal.phase == "cut" and any(p.name == "bulk" for p in proposal.phases)
     )
     _write_dexa(profile, payload)
-    profile["phase"] = proposal.phase
-    profile["calories"] = proposal.calories
-    protein_g, fat_g, carbs_g = macro_targets(proposal.calories, float(payload["weight_kg"]), proposal.phase)
-    profile["protein_g"] = protein_g
-    profile["fat_g"] = fat_g
-    profile["carbs_g"] = carbs_g
-    profile["reason"] = proposal.reason
-    profile["bf_percent"] = proposal.bf_percent
-    profile["target_bf_percent"] = proposal.target_bf_percent
-    profile["target_weight_kg"] = proposal.target_weight_kg
-    profile["forecast_end"] = proposal.forecast_end
-    profile["phases_json"] = json.dumps(
+    _apply_proposal(profile, proposal)
+    profile, weights, logs = _load_bundle(user)
+    return _dump(profile, weights, logs)
+
+
+def _phases_json(proposal) -> str:
+    return json.dumps(
         [
             {
                 "name": phase.name,
@@ -367,11 +369,34 @@ def bodycomp_save_plan(payload: dict):
             for phase in proposal.phases
         ]
     )
+
+
+def _heal_dexa_phases(profile) -> None:
+    """Profiles recalibrated from a DEXA scan before phases were rewritten keep the old cut length."""
+    if _cell(profile, "dexa_bf_percent") is None:
+        return
+    proposal = propose_plan(**plan_kwargs_from_profile(_row_as_profile(profile)))
+    if json.loads(profile["phases_json"] or "[]") != json.loads(_phases_json(proposal)):
+        _apply_proposal(profile, proposal)
+
+
+def _apply_proposal(profile, proposal):
+    """Write a plan proposal onto the profile, including phase dates so the schedule stays continuous."""
+    profile["phase"] = proposal.phase
+    profile["calories"] = proposal.calories
+    protein_g, fat_g, carbs_g = macro_targets(proposal.calories, float(profile["start_weight_kg"]), proposal.phase)
+    profile["protein_g"] = protein_g
+    profile["fat_g"] = fat_g
+    profile["carbs_g"] = carbs_g
+    profile["reason"] = proposal.reason
+    profile["bf_percent"] = proposal.bf_percent
+    profile["target_bf_percent"] = proposal.target_bf_percent
+    profile["target_weight_kg"] = proposal.target_weight_kg
+    profile["forecast_end"] = proposal.forecast_end
+    profile["phases_json"] = _phases_json(proposal)
     profile["series_json"] = json.dumps([{"label": label, "kg": kg} for label, kg in proposal.weight_series])
     _save_coach_state(profile, _coach_state_from_proposal(profile, proposal))
     profile.update()
-    profile, weights, logs = _load_bundle(user)
-    return _dump(profile, weights, logs)
 
 
 @anvil.server.callable
@@ -530,12 +555,16 @@ def bodycomp_reissue_next_week(week_index: int):
 
 @anvil.server.callable
 def bodycomp_read_dexa(media):
+    """Read a scan file. Returns {"values": {...}, "missing": [...], "error": str | None}."""
+    _user()
     if media is None:
         raise AuthError("Choose a DEXA file first.")
-    data = media.get_bytes()
-    parsed = extract_from_bytes(data, getattr(media, "content_type", "") or "", getattr(media, "name", "") or "")
-    parsed.pop("extracted_text", None)
-    return parsed
+    try:
+        values = extract_from_bytes(
+            media.get_bytes(), getattr(media, "content_type", "") or "", getattr(media, "name", "") or "")
+    except DexaReadError as err:
+        return {"values": empty_result(), "missing": list(REQUIRED), "error": str(err)}
+    return {"values": values, "missing": missing_required(values), "error": None}
 
 
 @anvil.server.callable
@@ -544,15 +573,15 @@ def bodycomp_store_dexa(media, payload=None):
     payload = payload or {}
     if media is None:
         raise AuthError("Choose a DEXA file first.")
-    parsed = extract_from_bytes(
-        media.get_bytes(),
-        getattr(media, "content_type", "") or "",
-        getattr(media, "name", "") or "",
-    )
-    measured = _as_date(payload.get("dexa_measured_on") or parsed.get("dexa_measured_on"))
-    bf = payload.get("dexa_bf_percent") if payload.get("dexa_bf_percent") not in (None, "") else parsed.get("dexa_bf_percent")
-    ffm = payload.get("dexa_ffm_kg") if payload.get("dexa_ffm_kg") not in (None, "") else parsed.get("dexa_ffm_kg")
-    rmr = payload.get("dexa_rmr_kcal") if payload.get("dexa_rmr_kcal") not in (None, "") else parsed.get("dexa_rmr_kcal")
+    missing = missing_required(payload)
+    if missing:
+        raise AuthError("Fill in the scan date, body fat, fat-free mass, and RMR before storing.")
+    parsed = dict((key, payload.get(key)) for key in EXTRA_METRICS)
+    parsed["source"] = payload.get("source") or "manual"
+    measured = _as_date(payload.get("dexa_measured_on"))
+    bf = float(payload["dexa_bf_percent"])
+    ffm = float(payload["dexa_ffm_kg"])
+    rmr = int(payload["dexa_rmr_kcal"])
     profile_rows = _rows_for_user(app_tables.profiles, user)
     start = profile_rows[0]["start_date"] if profile_rows else date.today()
     week = week_index_for(measured or date.today(), start)
@@ -565,9 +594,9 @@ def bodycomp_store_dexa(media, payload=None):
         week_index=week,
         bf_percent=bf,
         ffm_kg=ffm,
-        rmr_kcal=int(rmr) if rmr not in (None, "") else None,
+        rmr_kcal=rmr,
         file=media,
-        extracted_json=json.dumps({k: v for k, v in parsed.items() if k != "extracted_text"}),
+        extracted_json=json.dumps(parsed),
         notes=payload.get("notes") or "",
     )
     if profile_rows:
@@ -581,20 +610,11 @@ def bodycomp_store_dexa(media, payload=None):
                 "dexa_rmr_kcal": rmr,
             },
         )
-        proposal = propose_plan(**plan_kwargs_from_profile(_row_as_profile(profile)))
-        profile["bf_percent"] = proposal.bf_percent
-        profile["target_bf_percent"] = proposal.target_bf_percent
-        profile["target_weight_kg"] = proposal.target_weight_kg
-        profile["reason"] = proposal.reason
-        profile["calories"] = proposal.calories
-        _save_coach_state(profile, _coach_state_from_proposal(profile, proposal))
-        profile.update()
+        _apply_proposal(profile, propose_plan(**plan_kwargs_from_profile(_row_as_profile(profile))))
     profile, weights, logs = _load_bundle(user)
     if profile is None:
-        return {"has_plan": False, "extract": parsed}
-    dumped = _dump(profile, weights, logs)
-    dumped["extract"] = parsed
-    return dumped
+        return {"has_plan": False}
+    return _dump(profile, weights, logs)
 
 
 def _ensure_local_password():
@@ -634,6 +654,7 @@ def bodycomp_startup():
     if profile is None:
         return {"has_plan": False, "email": user["email"]}
     _backfill_coach_state(profile)
+    _heal_dexa_phases(profile)
     return _dump(profile, weights, logs)
 
 

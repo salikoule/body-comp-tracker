@@ -1,61 +1,105 @@
-"""Pull DEXA numbers from a report file. Prefer text; use an LLM only when a key is set."""
+"""Pull DEXA numbers from a report file. The user's OpenAI key reads the file itself; text regex is the fallback."""
 
+import base64
 import json
 import os
 import re
 from typing import Any
 
+REQUIRED = ("dexa_measured_on", "dexa_bf_percent", "dexa_ffm_kg", "dexa_rmr_kcal")
+EXTRA_METRICS = ("total_mass_kg", "fat_mass_kg", "lean_mass_kg", "bmc_kg", "vat_g")
+LIMITS = {
+    "dexa_bf_percent": (3, 60),
+    "dexa_ffm_kg": (20, 120),
+    "dexa_rmr_kcal": (900, 3500),
+    "total_mass_kg": (30, 250),
+    "fat_mass_kg": (2, 120),
+    "lean_mass_kg": (20, 120),
+    "bmc_kg": (1, 6),
+    "vat_g": (0, 5000),
+}
+PROMPT = (
+    "You read DEXA body-composition reports. Return one JSON object with these keys, using numbers only "
+    "(no units) and null when the report does not state the value:\n"
+    "dexa_measured_on: scan date as YYYY-MM-DD\n"
+    "dexa_bf_percent: total body fat percent\n"
+    "dexa_ffm_kg: total fat-free mass in kg (lean tissue plus bone mineral content)\n"
+    "dexa_rmr_kcal: resting metabolic rate in kcal/day\n"
+    "total_mass_kg: total body mass in kg\n"
+    "fat_mass_kg: total fat mass in kg\n"
+    "lean_mass_kg: total lean tissue mass in kg, without bone\n"
+    "bmc_kg: total bone mineral content in kg\n"
+    "vat_g: visceral adipose tissue mass in grams\n"
+    "Convert pounds to kg and bone content in grams to kg. Use the whole-body total row, not a region."
+)
+
+
+class DexaReadError(Exception):
+    pass
+
+
+def empty_result(source="none"):
+    result = dict((key, None) for key in REQUIRED + EXTRA_METRICS)
+    result["source"] = source
+    return result
+
 
 def extract_from_text(text: str) -> dict[str, Any]:
     blob = " ".join((text or "").split())
-    bf = _first_float(
-        blob,
-        (
-            r"(?:body\s*fat|fat\s*mass\s*%|bf\s*%)[^0-9]{0,24}(\d{1,2}(?:\.\d+)?)\s*%",
-            r"(\d{1,2}(?:\.\d+)?)\s*%\s*(?:body\s*fat|fat)",
-        ),
-    )
-    ffm = _first_float(
-        blob,
-        (
-            r"(?:fat[-\s]*free\s*mass|lean\s*(?:mass|tissue)|ffm)[^0-9]{0,24}(\d{2,3}(?:\.\d+)?)\s*kg",
-            r"(\d{2,3}(?:\.\d+)?)\s*kg\s*(?:fat[-\s]*free|lean|ffm)",
-        ),
-    )
-    rmr = _first_float(
-        blob,
-        (
-            r"(?:rmr|bmr|resting\s*(?:metabolic\s*)?rate|ree)[^0-9]{0,24}(\d{3,4})\s*k?cal",
-            r"(\d{3,4})\s*k?cal(?:ories)?\s*(?:rmr|bmr|resting)",
-        ),
-    )
-    measured = _first_date(blob)
-    return {
-        "dexa_bf_percent": _clamp(bf, 3, 60),
-        "dexa_ffm_kg": _clamp(ffm, 20, 120),
-        "dexa_rmr_kcal": int(_clamp(rmr, 900, 3500)) if rmr is not None else None,
-        "dexa_measured_on": measured,
-        "source": "text",
-    }
+    result = empty_result("text")
+    result["dexa_bf_percent"] = _clamp_key("dexa_bf_percent", _first_float(blob, (
+        r"(?:body\s*fat|fat\s*mass\s*%|bf\s*%)[^0-9]{0,24}(\d{1,2}(?:\.\d+)?)\s*%",
+        r"(\d{1,2}(?:\.\d+)?)\s*%\s*(?:body\s*fat|fat)",
+    )))
+    result["dexa_ffm_kg"] = _clamp_key("dexa_ffm_kg", _first_float(blob, (
+        r"(?:fat[-\s]*free\s*mass|lean\s*(?:mass|tissue)|ffm)[^0-9]{0,24}(\d{2,3}(?:\.\d+)?)\s*kg",
+        r"(\d{2,3}(?:\.\d+)?)\s*kg\s*(?:fat[-\s]*free|lean|ffm)",
+    )))
+    rmr = _clamp_key("dexa_rmr_kcal", _first_float(blob, (
+        r"(?:rmr|bmr|resting\s*(?:metabolic\s*)?rate|ree)[^0-9]{0,24}(\d{3,4})\s*k?cal",
+        r"(\d{3,4})\s*k?cal(?:ories)?\s*(?:rmr|bmr|resting)",
+    )))
+    result["dexa_rmr_kcal"] = int(rmr) if rmr is not None else None
+    result["dexa_measured_on"] = _first_date(blob)
+    return result
 
 
-def extract_from_bytes(data: bytes, content_type: str = "", name: str = "") -> dict[str, Any]:
-    text = _pdf_text(data) if _looks_pdf(data, content_type, name) else ""
-    parsed = extract_from_text(text) if text else {
-        "dexa_bf_percent": None,
-        "dexa_ffm_kg": None,
-        "dexa_rmr_kcal": None,
-        "dexa_measured_on": None,
-        "source": "none",
-    }
-    llm = _llm_extract(data, content_type, name, text)
-    if llm:
-        for key in ("dexa_bf_percent", "dexa_ffm_kg", "dexa_rmr_kcal", "dexa_measured_on"):
-            if llm.get(key) is not None and parsed.get(key) is None:
-                parsed[key] = llm[key]
-        parsed["source"] = "llm" if parsed["source"] == "none" else "text+llm"
-    parsed["extracted_text"] = (text or "")[:4000]
-    return parsed
+def extract_from_bytes(data: bytes, content_type: str = "", name: str = "", key: str | None = None) -> dict[str, Any]:
+    """Read every metric we can. Raises DexaReadError with a user-facing reason when nothing could be read."""
+    key = openai_api_key() if key is None else key
+    is_pdf = _looks_pdf(data, content_type, name)
+    if key:
+        result = normalize(_openai_read(data, content_type, name, is_pdf, key))
+        result["source"] = "ai"
+        return result
+    text = _pdf_text(data) if is_pdf else ""
+    if not text:
+        raise DexaReadError(
+            "Add your OpenAI key in Settings → AI so the scan can be read automatically, or type the numbers below."
+        )
+    return extract_from_text(text)
+
+
+def missing_required(values: dict[str, Any]) -> list[str]:
+    return [key for key in REQUIRED if values.get(key) in (None, "")]
+
+
+def normalize(raw: dict[str, Any]) -> dict[str, Any]:
+    result = empty_result(raw.get("source") or "ai")
+    for key in LIMITS:
+        result[key] = _clamp_key(key, raw.get(key))
+    if result["dexa_rmr_kcal"] is not None:
+        result["dexa_rmr_kcal"] = int(round(result["dexa_rmr_kcal"]))
+    if result["vat_g"] is not None:
+        result["vat_g"] = int(round(result["vat_g"]))
+    if result["dexa_ffm_kg"] is None and result["lean_mass_kg"] is not None and result["bmc_kg"] is not None:
+        result["dexa_ffm_kg"] = round(result["lean_mass_kg"] + result["bmc_kg"], 1)
+    if result["dexa_ffm_kg"] is None and result["total_mass_kg"] is not None and result["fat_mass_kg"] is not None:
+        result["dexa_ffm_kg"] = round(result["total_mass_kg"] - result["fat_mass_kg"], 1)
+    if result["dexa_bf_percent"] is None and result["total_mass_kg"] and result["fat_mass_kg"] is not None:
+        result["dexa_bf_percent"] = round(result["fat_mass_kg"] / result["total_mass_kg"] * 100, 1)
+    result["dexa_measured_on"] = _iso_date(raw.get("dexa_measured_on"))
+    return result
 
 
 def _looks_pdf(data: bytes, content_type: str, name: str) -> bool:
@@ -85,49 +129,59 @@ def openai_api_key():
         return ""
 
 
-def _llm_extract(data: bytes, content_type: str, name: str, text: str) -> dict[str, Any] | None:
-    key = openai_api_key()
-    if not key:
-        return None
-    prompt = (
-        "Extract DEXA scan metrics as JSON with keys dexa_bf_percent, dexa_ffm_kg, "
-        "dexa_rmr_kcal, dexa_measured_on (YYYY-MM-DD). Use null when missing.\n\n"
-        + (text[:6000] if text else "The file is an image or an unreadable PDF. Infer only if obvious.")
-    )
-    try:
-        return _openai_json(prompt, key)
-    except Exception:
-        return None
+def _file_part(data: bytes, content_type: str, name: str, is_pdf: bool) -> dict[str, Any]:
+    encoded = base64.b64encode(data).decode()
+    if is_pdf:
+        return {"type": "file", "file": {"filename": name or "dexa.pdf", "file_data": "data:application/pdf;base64," + encoded}}
+    mime = content_type if (content_type or "").startswith("image/") else "image/jpeg"
+    return {"type": "image_url", "image_url": {"url": "data:%s;base64,%s" % (mime, encoded)}}
 
 
-def _openai_json(prompt: str, key: str) -> dict[str, Any] | None:
-    import json as _json
+def _openai_read(data: bytes, content_type: str, name: str, is_pdf: bool, key: str) -> dict[str, Any]:
+    import urllib.error
     import urllib.request
 
     body = {
         "model": os.environ.get("OPENAI_DEXA_MODEL") or "gpt-4o-mini",
         "response_format": {"type": "json_object"},
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [
+            {"role": "system", "content": PROMPT},
+            {"role": "user", "content": [
+                {"type": "text", "text": "Read this DEXA report."},
+                _file_part(data, content_type, name, is_pdf),
+            ]},
+        ],
     }
     req = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions",
-        data=_json.dumps(body).encode(),
-        headers={
-            "Authorization": "Bearer %s" % key,
-            "Content-Type": "application/json",
-        },
+        data=json.dumps(body).encode(),
+        headers={"Authorization": "Bearer %s" % key, "Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=40) as resp:
-        payload = _json.loads(resp.read().decode())
-    raw = payload["choices"][0]["message"]["content"]
-    parsed = json.loads(raw)
-    return {
-        "dexa_bf_percent": _clamp(parsed.get("dexa_bf_percent"), 3, 60),
-        "dexa_ffm_kg": _clamp(parsed.get("dexa_ffm_kg"), 20, 120),
-        "dexa_rmr_kcal": int(_clamp(parsed.get("dexa_rmr_kcal"), 900, 3500)) if parsed.get("dexa_rmr_kcal") else None,
-        "dexa_measured_on": parsed.get("dexa_measured_on"),
-    }
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            payload = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as err:
+        raise DexaReadError(_http_reason(err)) from err
+    except Exception as err:
+        raise DexaReadError("The scan could not be read in time. Try again, or type the numbers below.") from err
+    try:
+        return json.loads(payload["choices"][0]["message"]["content"])
+    except (KeyError, IndexError, ValueError) as err:
+        raise DexaReadError("The AI reply was not readable. Try again, or type the numbers below.") from err
+
+
+def _http_reason(err) -> str:
+    if err.code == 401:
+        return "OpenAI rejected the key in Settings → AI. Check it, or type the numbers below."
+    if err.code == 429:
+        return "OpenAI is rate limiting this key or it has no credit left. Try again later, or type the numbers below."
+    try:
+        detail = json.loads(err.read().decode()).get("error", {}).get("message") or ""
+    except Exception:
+        detail = ""
+    return ("OpenAI could not read the file (%s). Type the numbers below." % detail[:160]) if detail else (
+        "OpenAI could not read the file. Type the numbers below.")
 
 
 def _first_float(text: str, patterns: tuple[str, ...]):
@@ -146,6 +200,17 @@ def _first_date(text: str):
     if not match:
         return None
     return "%s-%02d-%02d" % (match.group(1), int(match.group(2)), int(match.group(3)))
+
+
+def _iso_date(value):
+    if not value:
+        return None
+    return _first_date(str(value))
+
+
+def _clamp_key(key, value):
+    low, high = LIMITS[key]
+    return _clamp(value, low, high)
 
 
 def _clamp(value, low, high):
