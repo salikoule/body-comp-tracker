@@ -97,6 +97,39 @@ def test_dexa_text_extracts_core_metrics():
     assert parsed["dexa_measured_on"] == "2026-10-20"
 
 
+def test_dexa_normalize_corrects_misread_core_metrics_from_masses():
+    sys.path.insert(0, str(ROOT / "server_code"))
+    from DexaExtract import missing_required, normalize
+
+    misread = {
+        "dexa_measured_on": "2026-10-22",
+        "dexa_bf_percent": 22,
+        "dexa_ffm_kg": 62.4,
+        "dexa_rmr_kcal": 1550,
+        "total_mass_kg": 79.8,
+        "fat_mass_kg": 22.055,
+        "lean_mass_kg": 54.568,
+        "bmc_kg": 3.129,
+        "vat_g": 636,
+    }
+    fixed = normalize(misread)
+    assert fixed["dexa_bf_percent"] == 28.8
+    assert fixed["dexa_ffm_kg"] == 57.7
+    assert missing_required(fixed) == []
+
+
+def test_dexa_normalize_keeps_reported_values_that_agree():
+    sys.path.insert(0, str(ROOT / "server_code"))
+    from DexaExtract import missing_required, normalize
+
+    read = normalize({"dexa_measured_on": "22/10/2026", "dexa_bf_percent": 28.8, "dexa_ffm_kg": 57.698,
+                      "total_mass_kg": 79.8, "fat_mass_kg": 22.055, "lean_mass_kg": 54.568, "bmc_kg": 3.129})
+    assert read["dexa_bf_percent"] == 28.8
+    assert read["dexa_ffm_kg"] == 57.698
+    assert read["dexa_measured_on"] == "2026-10-22"
+    assert missing_required(read) == ["dexa_rmr_kcal"]
+
+
 def test_tracker_icons_are_lucide_from_body_comp():
     for name in ("flame", "protein", "fat", "carbs", "down", "up", "reverse"):
         assert ICON[name].startswith("<svg")

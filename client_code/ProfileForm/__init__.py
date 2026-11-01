@@ -7,7 +7,7 @@ import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server
 from craftify_library.CustomComponents.FileDrop import FileDrop
-from body_comp_tracker import Format, Layout
+from body_comp_tracker import Format, Layout, ScanImages
 
 SEX = (("Male", "male"), ("Female", "female"))
 OUTCOME = (("Lose fat", "lose_fat"), ("Gain muscle", "gain_muscle"), ("Recomp", "recomp"))
@@ -314,7 +314,7 @@ class ProfileForm(ProfileFormTemplate):
         self.dexa_store.enabled = False
         self._set_dexa_status("Reading %s…" % (getattr(media, "name", None) or "the scan"))
         try:
-            result = anvil.server.call("bodycomp_read_dexa", media)
+            result = anvil.server.call("bodycomp_read_dexa", media, ScanImages.strips_for(media))
         except Exception as e:
             self._set_dexa_status(str(e), "bad")
             self._sync_dexa_store()

@@ -30,8 +30,19 @@ PROMPT = (
     "lean_mass_kg: total lean tissue mass in kg, without bone\n"
     "bmc_kg: total bone mineral content in kg\n"
     "vat_g: visceral adipose tissue mass in grams\n"
-    "Convert pounds to kg and bone content in grams to kg. Use the whole-body total row, not a region."
+    "Rules:\n"
+    "- Use the whole-body total row (Total, Whole Body, Σύνολο, Ολόσωμη), never an arm, leg, trunk, android or gynoid row.\n"
+    "- Reports are often European: a comma is the decimal mark ('28,8 %' is 28.8) and a dot groups thousands "
+    "('22.055 g' is 22055 grams, so 22.055 kg). Convert grams to kg for every *_kg key.\n"
+    "- Greek labels: Ιστός (%Λίπος) is body fat percent; Λίπος is fat mass; Ιστός χωρίς λίπος is lean mass; "
+    "Οστική μάζα (BMC) is bone mineral content; Συνολική is total mass; Fat Free Mass is fat-free mass; "
+    "Μετρηθείσα is the scan date (DD/MM/YYYY).\n"
+    "- Body fat percent is a percentage near fat mass / total mass. Never put a mass value in dexa_bf_percent.\n"
+    "- Copy numbers exactly as printed. Do not estimate."
 )
+MAX_STRIPS = 24
+CONSISTENCY_PP = 1.5
+CONSISTENCY_KG = 1.5
 
 
 class DexaReadError(Exception):
@@ -64,12 +75,14 @@ def extract_from_text(text: str) -> dict[str, Any]:
     return result
 
 
-def extract_from_bytes(data: bytes, content_type: str = "", name: str = "", key: str | None = None) -> dict[str, Any]:
+def extract_from_bytes(data: bytes, content_type: str = "", name: str = "", key: str | None = None,
+                       strips=None) -> dict[str, Any]:
     """Read every metric we can. Raises DexaReadError with a user-facing reason when nothing could be read."""
     key = openai_api_key() if key is None else key
     is_pdf = _looks_pdf(data, content_type, name)
     if key:
-        result = normalize(_openai_read(data, content_type, name, is_pdf, key))
+        parts = _strip_parts(strips) or [_file_part(data, content_type, name, is_pdf)]
+        result = normalize(_openai_read(parts, key))
         result["source"] = "ai"
         return result
     text = _pdf_text(data) if is_pdf else ""
@@ -92,12 +105,23 @@ def normalize(raw: dict[str, Any]) -> dict[str, Any]:
         result["dexa_rmr_kcal"] = int(round(result["dexa_rmr_kcal"]))
     if result["vat_g"] is not None:
         result["vat_g"] = int(round(result["vat_g"]))
-    if result["dexa_ffm_kg"] is None and result["lean_mass_kg"] is not None and result["bmc_kg"] is not None:
-        result["dexa_ffm_kg"] = round(result["lean_mass_kg"] + result["bmc_kg"], 1)
-    if result["dexa_ffm_kg"] is None and result["total_mass_kg"] is not None and result["fat_mass_kg"] is not None:
-        result["dexa_ffm_kg"] = round(result["total_mass_kg"] - result["fat_mass_kg"], 1)
-    if result["dexa_bf_percent"] is None and result["total_mass_kg"] and result["fat_mass_kg"] is not None:
-        result["dexa_bf_percent"] = round(result["fat_mass_kg"] / result["total_mass_kg"] * 100, 1)
+    total, fat, lean, bmc = (result[key] for key in ("total_mass_kg", "fat_mass_kg", "lean_mass_kg", "bmc_kg"))
+    if total and fat is not None and fat < total:
+        derived_ffm = round(total - fat, 1)
+        if lean is not None and bmc is not None and abs(lean + bmc - derived_ffm) > CONSISTENCY_KG:
+            derived_ffm = None
+        tissue = fat + lean if lean is not None else (total - bmc if bmc is not None else None)
+        derived_bf = round(fat / tissue * 100, 1) if derived_ffm is not None and tissue else None
+        if derived_bf is not None and (
+            result["dexa_bf_percent"] is None or abs(result["dexa_bf_percent"] - derived_bf) > CONSISTENCY_PP
+        ):
+            result["dexa_bf_percent"] = derived_bf
+        if derived_ffm is not None and (
+            result["dexa_ffm_kg"] is None or abs(result["dexa_ffm_kg"] - derived_ffm) > CONSISTENCY_KG
+        ):
+            result["dexa_ffm_kg"] = derived_ffm
+    if result["dexa_ffm_kg"] is None and lean is not None and bmc is not None:
+        result["dexa_ffm_kg"] = round(lean + bmc, 1)
     result["dexa_measured_on"] = _iso_date(raw.get("dexa_measured_on"))
     return result
 
@@ -137,19 +161,28 @@ def _file_part(data: bytes, content_type: str, name: str, is_pdf: bool) -> dict[
     return {"type": "image_url", "image_url": {"url": "data:%s;base64,%s" % (mime, encoded)}}
 
 
-def _openai_read(data: bytes, content_type: str, name: str, is_pdf: bool, key: str) -> dict[str, Any]:
+def _strip_parts(strips) -> list[dict[str, Any]]:
+    parts = []
+    for strip in (strips or [])[:MAX_STRIPS]:
+        if isinstance(strip, str) and strip.startswith("data:image/jpeg;base64,"):
+            parts.append({"type": "image_url", "image_url": {"url": strip, "detail": "high"}})
+    return parts
+
+
+def _openai_read(parts: list[dict[str, Any]], key: str) -> dict[str, Any]:
     import urllib.error
     import urllib.request
 
+    intro = "Read this DEXA report."
+    if parts and parts[0]["type"] == "image_url":
+        intro = "Read this DEXA report. The images are overlapping horizontal strips of photographed pages, top to bottom."
     body = {
-        "model": os.environ.get("OPENAI_DEXA_MODEL") or "gpt-4o-mini",
+        "model": os.environ.get("OPENAI_DEXA_MODEL") or "gpt-4.1",
+        "temperature": 0,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": PROMPT},
-            {"role": "user", "content": [
-                {"type": "text", "text": "Read this DEXA report."},
-                _file_part(data, content_type, name, is_pdf),
-            ]},
+            {"role": "user", "content": [{"type": "text", "text": intro}] + parts},
         ],
     }
     req = urllib.request.Request(
@@ -205,7 +238,13 @@ def _first_date(text: str):
 def _iso_date(value):
     if not value:
         return None
-    return _first_date(str(value))
+    iso = _first_date(str(value))
+    if iso:
+        return iso
+    match = re.search(r"(\d{1,2})[./-](\d{1,2})[./-](20\d{2})", str(value))
+    if not match:
+        return None
+    return "%s-%02d-%02d" % (match.group(3), int(match.group(2)), int(match.group(1)))
 
 
 def _clamp_key(key, value):

@@ -554,14 +554,16 @@ def bodycomp_reissue_next_week(week_index: int):
 
 
 @anvil.server.callable
-def bodycomp_read_dexa(media):
-    """Read a scan file. Returns {"values": {...}, "missing": [...], "error": str | None}."""
+def bodycomp_read_dexa(media, strips=None):
+    """Read a scan file. `strips` are browser-cut JPEG data URLs of photographed pages.
+    Returns {"values": {...}, "missing": [...], "error": str | None}."""
     _user()
     if media is None:
         raise AuthError("Choose a DEXA file first.")
     try:
         values = extract_from_bytes(
-            media.get_bytes(), getattr(media, "content_type", "") or "", getattr(media, "name", "") or "")
+            media.get_bytes(), getattr(media, "content_type", "") or "", getattr(media, "name", "") or "",
+            strips=strips)
     except DexaReadError as err:
         return {"values": empty_result(), "missing": list(REQUIRED), "error": str(err)}
     return {"values": values, "missing": missing_required(values), "error": None}
