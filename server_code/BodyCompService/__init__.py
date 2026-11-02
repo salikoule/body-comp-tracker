@@ -10,14 +10,18 @@ from anvil.tables import app_tables
 
 from craftify_library.BodyCoach.adapt import adapt_calories, trend_rate_kg
 from craftify_library.BodyCoach.dexa import navy_dexa_offset
-from craftify_library.BodyCoach.plan import macro_targets, navy_bf, propose_plan
+from craftify_library.BodyCoach.plan import age_on, macro_targets, navy_bf, propose_plan
 from craftify_library.BodyCoach.plan_kwargs import plan_kwargs_from_profile
 from craftify_library.BodyCoach.schedule import average_weight_in_week, build_schedule, week_index_for
 from craftify_library.CraftifyAuth import AuthError, craftify_require_user
 from DexaExtract import EXTRA_METRICS, REQUIRED, DexaReadError, empty_result, extract_from_bytes, missing_required
 from plan_history import dexa_weeks, merge_issued_calories
+from CoachAI import CoachError, review as coach_review
+from DexaExtract import openai_api_key
+from Roadmap import goal_check, roadmaps
 
 SCAN_METRICS = ("bf_percent", "ffm_kg", "rmr_kcal") + EXTRA_METRICS
+GOAL_LIMITS = {"bf_percent": (6.0, 35.0), "ffmi": (14.0, 27.0), "training_years": (0.0, 40.0)}
 LEGACY_SCAN_COLUMNS = ("bf_percent", "ffm_kg", "rmr_kcal")
 
 
@@ -295,6 +299,8 @@ def _coach_state_from_proposal(profile, proposal):
         "bmr_mifflin": proposal.bmr_mifflin,
         "bf_milestones": proposal.bf_milestones,
         "slow_streak": old.get("slow_streak") or 0,
+        "goal": old.get("goal"),
+        "coach_review": old.get("coach_review"),
     }
 
 
@@ -357,7 +363,45 @@ def _dump(profile, weights, logs) -> dict:
         "dexa_scans": scans,
         "schedule": schedule,
         "email": _user()["email"],
+        "goal": _goal(state),
+        "roadmap": _roadmap(profile, actual, _goal(state)),
+        "coach_review": state.get("coach_review"),
     }
+
+
+def _goal(state):
+    goal = state.get("goal")
+    return goal if isinstance(goal, dict) and goal.get("bf_percent") and goal.get("ffmi") else None
+
+
+def _current_body(profile, actual):
+    """Today's weight (average of the last seven weigh-ins) and fat-free mass (latest DEXA, else plan body fat)."""
+    recent = [float(item["kg"]) for item in actual[-7:] if item.get("kg")]
+    weight = sum(recent) / len(recent) if recent else float(profile["start_weight_kg"])
+    ffm = _cell(profile, "dexa_ffm_kg")
+    source = "dexa"
+    if not ffm:
+        bf = profile.get("bf_percent")
+        if not bf:
+            return None
+        ffm = weight * (1 - float(bf) / 100.0)
+        source = "plan"
+    return {"weight_kg": round(weight, 1), "ffm_kg": round(float(ffm), 1), "source": source,
+            "bf_percent": round((weight - float(ffm)) / weight * 100, 1)}
+
+
+def _roadmap(profile, actual, goal):
+    if not goal:
+        return None
+    body = _current_body(profile, actual)
+    if body is None:
+        return None
+    plans = roadmaps(
+        sex=profile["sex"], height_cm=float(profile["height_cm"]), weight_kg=body["weight_kg"], ffm_kg=body["ffm_kg"],
+        goal_bf=float(goal["bf_percent"]), goal_ffmi=float(goal["ffmi"]),
+        training_years=float(goal.get("training_years") or 0), start=date.today(),
+    )
+    return {"now": body, "plans": plans, "note": goal_check(profile["sex"], float(goal["ffmi"]))}
 
 
 @anvil.server.callable
@@ -369,6 +413,123 @@ def bodycomp_get_plan():
     _backfill_coach_state(profile)
     _heal_dexa_phases(profile)
     return _dump(profile, weights, logs)
+
+
+@anvil.server.callable
+def bodycomp_save_goal(goal: dict):
+    """Store the goal body: body fat %, lean mass index, and years of consistent training."""
+    user = _user()
+    profile, weights, logs = _load_bundle(user)
+    if profile is None:
+        raise ValueError("Save your profile before setting a goal.")
+    clean = {}
+    for name, (low, high) in GOAL_LIMITS.items():
+        try:
+            value = float(goal.get(name))
+        except (TypeError, ValueError):
+            raise ValueError("Enter a number for %s." % name.replace("_", " "))
+        if not low <= value <= high:
+            raise ValueError("%s must be between %s and %s." % (name.replace("_", " ").capitalize(), low, high))
+        clean[name] = round(value, 1)
+    state = _coach_state(profile)
+    state["goal"] = clean
+    _save_coach_state(profile, state)
+    return _dump(profile, weights, logs)
+
+
+@anvil.server.callable
+def bodycomp_coach_review():
+    """Ask the AI coach to recommend a roadmap. The result is kept until the next review."""
+    user = _user()
+    profile, weights, logs = _load_bundle(user)
+    if profile is None:
+        raise ValueError("Save your profile first.")
+    dump = _dump(profile, weights, logs)
+    if not dump.get("roadmap"):
+        raise ValueError("Set a goal first.")
+    try:
+        result = coach_review(_coach_context(dump), openai_api_key())
+    except CoachError as err:
+        raise ValueError(str(err))
+    state = _coach_state(profile)
+    latest = dump["dexa_scans"][-1]["measured_on"] if dump["dexa_scans"] else None
+    state["coach_review"] = {"at": _now().isoformat(), "goal": dump["goal"], "scan": latest, "review": result}
+    _save_coach_state(profile, state)
+    return _dump(profile, weights, logs)
+
+
+def _coach_context(dump):
+    height_m = float(dump["height_cm"]) / 100.0
+    goal = dump["goal"]
+    scan = dump["dexa_scans"][-1] if dump["dexa_scans"] else None
+    goal_ffm = goal["ffmi"] * height_m ** 2
+    born = _as_date(dump["date_of_birth"])
+    checkins = [
+        {key: row.get(key) for key in ("week", "phase", "target_weight_kg", "actual_weight_kg", "target_calories",
+                                       "adherence", "training_sessions", "training_feel", "trend_rate_kg", "status")}
+        for row in dump["schedule"]
+        if row["week"] <= dump["current_week"] and row.get("status") not in (None, "planned")
+    ][-6:]
+    return {
+        "today": date.today().isoformat(),
+        "person": {
+            "sex": dump["sex"],
+            "age": age_on(born, date.today()) if born else None,
+            "height_cm": dump["height_cm"],
+            "training_days_per_week": dump["training_days"],
+            "daily_steps": dump["daily_steps"],
+            "years_of_consistent_training": goal.get("training_years"),
+        },
+        "now": dict(dump["roadmap"]["now"], ffmi=round(dump["roadmap"]["now"]["ffm_kg"] / height_m ** 2, 1)),
+        "latest_dexa_scan": None if scan is None else {
+            key: scan.get(key) for key in ("measured_on", "bf_percent", "ffm_kg", "fat_mass_kg", "lean_mass_kg",
+                                           "bmc_kg", "vat_g", "rmr_kcal", "total_mass_kg")
+        },
+        "dexa_scan_count": len(dump["dexa_scans"]),
+        "goal": {
+            "bf_percent": goal["bf_percent"],
+            "ffmi": goal["ffmi"],
+            "ffm_kg": round(goal_ffm, 1),
+            "weight_kg_at_goal": round(goal_ffm / (1 - goal["bf_percent"] / 100.0), 1),
+            "note": dump["roadmap"]["note"],
+        },
+        "reference": {
+            "body_fat_definition": "fat / total weight in roadmaps and the weekly plan; DEXA reports fat / (fat + lean) without bone",
+            "ffmi_bands_male": "below 17 low, 17-18.5 below average, 18.5-20 average, 20-22 above average, 22+ excellent, about 25 natural ceiling",
+            "ffmi_bands_female": "below 14 low, 14-15.5 below average, 15.5-17 average, 17-19 above average, 19+ excellent, about 21.5 natural ceiling",
+            "visceral_fat_ideal_g": "under 450 for men, under 350 for women",
+        },
+        "current_plan": {
+            "phase": dump["phase"],
+            "current_week": dump["current_week"],
+            "calories": dump["calories"],
+            "protein_g": dump["protein_g"],
+            "target_bf_percent": dump["target_bf_percent"],
+            "target_weight_kg": dump["target_weight_kg"],
+            "weekly_rate_kg": dump["weekly_rate_kg"],
+            "phases": dump["phases"],
+        },
+        "recent_checkins": checkins,
+        "roadmaps": [
+            {
+                "key": plan["key"],
+                "name": plan["name"],
+                "years": round(plan["weeks"] / 52.0, 1),
+                "reaches_goal": plan["reaches_goal"],
+                "peak_bf_percent": plan["peak_bf"],
+                "end": plan["end"],
+                "phases": [
+                    {"label": phase["label"], "weeks": phase["weeks"], "from": phase["start"]["date"],
+                     "to": phase["end"]["date"], "weight_kg": [phase["start"]["weight_kg"], phase["end"]["weight_kg"]],
+                     "bf_percent": [phase["start"]["bf_percent"], phase["end"]["bf_percent"]],
+                     "ffmi": [phase["start"]["ffmi"], phase["end"]["ffmi"]],
+                     "kcal_vs_maintenance_per_day": phase["kcal_per_day"], "kg_per_week": phase["kg_per_week"]}
+                    for phase in plan["phases"]
+                ],
+            }
+            for plan in dump["roadmap"]["plans"]
+        ],
+    }
 
 
 @anvil.server.callable
