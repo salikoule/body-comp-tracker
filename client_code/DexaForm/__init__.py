@@ -8,6 +8,7 @@ from anvil.google.drive import app_files
 import anvil.js
 import anvil.media
 import anvil.server
+from craftify_library.CraftifyUtils import dialogs
 from craftify_library.CustomComponents.FileDrop import FileDrop
 from body_comp_tracker import Format, Layout, ScanImages
 from body_comp_tracker import DexaRatings as Ratings
@@ -225,7 +226,9 @@ class DexaForm(DexaFormTemplate):
 
     def _delete(self, scan):
         day = Format.date_label(scan.get("measured_on"))
-        if not confirm("Delete the scan from %s? The plan recalibrates from the newest scan left, or from tape if none are left." % day):
+        if not dialogs.confirm(
+            "The plan recalibrates from the newest scan left, or from tape if none are left.",
+            title="Delete the scan from %s?" % day, confirm_text="Delete scan", danger=True):
             return
         try:
             state = anvil.server.call("bodycomp_delete_dexa", scan["id"])

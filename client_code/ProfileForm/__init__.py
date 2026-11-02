@@ -6,6 +6,7 @@ from routing import router
 import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server
+from craftify_library.CraftifyUtils import dialogs
 from body_comp_tracker import Format, Layout
 
 SEX = (("Male", "male"), ("Female", "female"))
@@ -207,7 +208,9 @@ class ProfileForm(ProfileFormTemplate):
         Layout.navigate("dashboard")
 
     def _delete_week(self, week):
-        if not confirm("Delete week %s check-in? Issued calories stay unless you re-issue." % week):
+        if not dialogs.confirm(
+            "Issued calories stay unless you re-issue them.",
+            title="Delete the week %s check-in?" % week, confirm_text="Delete check-in", danger=True):
             return
         try:
             state = anvil.server.call("bodycomp_delete_week_log", week)
@@ -218,7 +221,9 @@ class ProfileForm(ProfileFormTemplate):
         self._build(state)
 
     def _delete_weight(self, day):
-        if not confirm("Delete the weight logged on %s?" % Format.date_label(day)):
+        if not dialogs.confirm(
+            "This removes it from the trend and the weekly averages.",
+            title="Delete the weight logged on %s?" % Format.date_label(day), confirm_text="Delete weight", danger=True):
             return
         try:
             state = anvil.server.call("bodycomp_delete_weight", day)
@@ -229,7 +234,9 @@ class ProfileForm(ProfileFormTemplate):
         self._build(state)
 
     def _reissue(self, week):
-        if not confirm("Overwrite week %s calories from week %s's trend?" % (week + 1, week)):
+        if not dialogs.confirm(
+            "Week %s calories are replaced with a target worked out from week %s's trend." % (week + 1, week),
+            title="Re-issue week %s calories?" % (week + 1), confirm_text="Re-issue"):
             return
         try:
             state = anvil.server.call("bodycomp_reissue_next_week", week)
