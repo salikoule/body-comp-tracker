@@ -14,11 +14,24 @@ def test_cycles_cut_first_then_bulk_and_reach_the_goal():
     plan = _by_key()["cycles"]
     kinds = [phase["kind"] for phase in plan["phases"]]
     assert kinds[:3] == ["cut", "maintain", "bulk"]
-    assert plan["phases"][0]["end"]["bf_percent"] == 12.0
+    assert plan["phases"][0]["end"]["bf_percent"] == 13.0
     assert plan["reaches_goal"]
     assert plan["end"]["ffmi"] >= 21.95
-    assert max(phase["end"]["bf_percent"] for phase in plan["phases"]) <= 16.2
-    assert 2.5 < plan["weeks"] / 52 < 5
+    assert max(phase["end"]["bf_percent"] for phase in plan["phases"]) <= 17.7
+    assert 2 < plan["weeks"] / 52 < 4
+
+
+def test_new_lifters_with_fat_to_spare_gain_muscle_while_cutting():
+    new = _by_key(training_years=0)["cycles"]["phases"][0]
+    trained = _by_key(training_years=3)["cycles"]["phases"][0]
+    assert new["end"]["ffm_kg"] - new["start"]["ffm_kg"] > 1.0
+    assert trained["end"]["ffm_kg"] == trained["start"]["ffm_kg"]
+    assert Roadmap.cut_lean_factor("male", 0, 12) == 0
+
+
+def test_cuts_go_faster_at_higher_body_fat():
+    assert Roadmap.cut_rate("male", 28) > Roadmap.cut_rate("male", 18) > Roadmap.cut_rate("male", 12)
+    assert Roadmap.cut_rate("female", 38) == Roadmap.cut_rate("male", 28)
 
 
 def test_cycles_is_fastest_and_recomp_slowest_for_a_high_body_fat_start():

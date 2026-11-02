@@ -1,15 +1,23 @@
 """Long-range physique roadmap: simulate week by week from today's body to a goal body.
 
 Body fat here is fat / total weight, the same definition the weekly plan uses.
-Fat-free mass changes only through the lean-gain model; cuts are assumed to keep it.
+Fat-free mass changes only through the lean-gain model. Cuts add some muscle for newer lifters
+carrying more fat, and none for trained or lean ones.
 """
 
 from datetime import date, timedelta
 
 WEEKS_PER_MONTH = 4.345
 MAX_WEEKS = 520
-CUT_RATE = 0.005
+CUT_RATES = ((25.0, 0.008), (20.0, 0.0065), (15.0, 0.005), (0.0, 0.004))
+FEMALE_BF_OFFSET = 10.0
 MINI_CUT_RATE = 0.0075
+CUT_LEAN_MAX = 0.5
+CUT_LEAN_SPAN = 15.0
+CUT_LEAN_EXPERIENCE = (1.0, 0.6, 0.3, 0.0)
+LOW_BF = {"male": 8.0, "female": 16.0}
+CYCLE_MARGIN = 1.5
+CYCLE_SPAN = 4.5
 RESET_WEEKS = 2
 KCAL_PER_KG_FAT = 7700
 KCAL_PER_KG_LEAN = 4000
@@ -47,6 +55,23 @@ def lean_gain_per_week(sex, years, ffmi):
     """Muscle the body can add per week in a surplus. It slows with the square of the headroom left."""
     monthly = LEAN_KG_PER_MONTH[sex] * headroom(sex, ffmi) ** 2 * EXPERIENCE_FACTOR[experience_index(years)]
     return max(monthly, 0.02) / WEEKS_PER_MONTH
+
+
+def cut_rate(sex, bf):
+    """Weekly loss as a share of body weight: faster while there is more fat to lose."""
+    bf -= FEMALE_BF_OFFSET if sex == "female" else 0.0
+    for above, rate in CUT_RATES:
+        if bf > above:
+            return rate
+    return CUT_RATES[-1][1]
+
+
+def cut_lean_factor(sex, years, bf):
+    """Share of the surplus muscle rate kept in a deficit: up to half for a new lifter with fat to spare."""
+    excess = bf - LEAN_FLOOR[sex]
+    if excess <= 0:
+        return 0.0
+    return min(CUT_LEAN_MAX, CUT_LEAN_MAX * excess / CUT_LEAN_SPAN) * CUT_LEAN_EXPERIENCE[experience_index(years)]
 
 
 def lean_share(sex, ffmi):
@@ -122,15 +147,17 @@ class _Run:
             "kg_per_week": round((end["weight_kg"] - start["weight_kg"]) / weeks, 2),
         })
 
-    def cut(self, label, rate, to_bf):
-        """Lose a fixed share of the starting weight each week, as the weekly plan does."""
+    def cut(self, label, to_bf, rate=None):
+        """Lose a share of body weight each week (tiered by body fat unless a rate is given)."""
         body = self.body
-        weekly = rate * body.weight
 
         def step():
-            loss = min(weekly, body.fat - _fat_for(body.ffm, to_bf))
+            lean = body.lean_rate() * cut_lean_factor(body.sex, body.years, body.bf)
+            body.ffm += lean
+            weekly = (rate or cut_rate(body.sex, body.bf)) * body.weight
+            loss = max(0.0, min(weekly + lean, body.fat - _fat_for(body.ffm, to_bf)))
             body.fat -= loss
-            return -loss * KCAL_PER_KG_FAT
+            return lean * KCAL_PER_KG_LEAN - loss * KCAL_PER_KG_FAT
 
         self.phase("cut", label, step, lambda: body.bf <= to_bf + 0.05)
 
@@ -166,29 +193,29 @@ def simulate(strategy, *, sex, height_cm, weight_kg, ffm_kg, goal_bf, goal_ffmi,
     run = _Run(body)
     start_bf = body.bf
     goal_ffm = goal_ffmi * body.h2
-    floor = min(LEAN_FLOOR[sex], goal_bf - 1.5)
-    ceiling = max(BULK_CEILING[sex], goal_bf + 1.5)
+    floor = max(LOW_BF[sex], goal_bf - CYCLE_MARGIN)
+    ceiling = max(BULK_CEILING[sex], floor + CYCLE_SPAN)
     need_muscle = lambda: body.ffm < goal_ffm - 0.05
 
     if strategy != "recomp" and not need_muscle():
         if body.bf > goal_bf + 0.5:
-            run.cut("Cut to %s%%" % _num(goal_bf), CUT_RATE, goal_bf)
+            run.cut("Cut to %s%%" % _num(goal_bf), goal_bf)
             run.hold("Back to maintenance", 3)
     elif strategy == "cycles":
         if body.bf > floor + 1:
-            run.cut("Cut to %s%%" % _num(floor), CUT_RATE, floor)
+            run.cut("Cut to %s%%" % _num(floor), floor)
             run.hold("Back to maintenance", 3)
         while need_muscle() and body.week < MAX_WEEKS:
             run.bulk("Lean bulk", lambda: body.bf >= ceiling or not need_muscle())
             if not need_muscle() or body.week >= MAX_WEEKS:
                 break
-            run.cut("Mini-cut to %s%%" % _num(floor), MINI_CUT_RATE, floor)
+            run.cut("Mini-cut to %s%%" % _num(floor), floor, MINI_CUT_RATE)
             run.hold("Reset at maintenance", RESET_WEEKS)
         if body.bf > goal_bf + 0.5:
-            run.cut("Finish at %s%%" % _num(goal_bf), CUT_RATE, goal_bf)
+            run.cut("Finish at %s%%" % _num(goal_bf), goal_bf)
     elif strategy == "slow_gain":
         if body.bf > goal_bf + 0.5:
-            run.cut("Cut to %s%%" % _num(goal_bf), CUT_RATE, goal_bf)
+            run.cut("Cut to %s%%" % _num(goal_bf), goal_bf)
             run.hold("Back to maintenance", 3)
         if need_muscle():
             run.bulk("Slow gain at %s%%" % _num(goal_bf), lambda: not need_muscle(), slow=True,
