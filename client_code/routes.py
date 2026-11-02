@@ -50,6 +50,11 @@ class ProgressRoute(AppPage):
     form = "ProgressForm"
 
 
+class DexaRoute(AppPage):
+    path = "/dexa"
+    form = "DexaForm"
+
+
 class CheckInRoute(AppPage):
     path = "/checkin"
     form = "CheckInForm"

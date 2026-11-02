@@ -1,7 +1,7 @@
 """Body composition coach — persistence + craftify_library.BodyCoach rules."""
 
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 
 import anvil.server
@@ -16,6 +16,9 @@ from craftify_library.BodyCoach.schedule import average_weight_in_week, build_sc
 from craftify_library.CraftifyAuth import AuthError, craftify_require_user
 from DexaExtract import EXTRA_METRICS, REQUIRED, DexaReadError, empty_result, extract_from_bytes, missing_required
 from plan_history import dexa_weeks, merge_issued_calories
+
+SCAN_METRICS = ("bf_percent", "ffm_kg", "rmr_kcal") + EXTRA_METRICS
+LEGACY_SCAN_COLUMNS = ("bf_percent", "ffm_kg", "rmr_kcal")
 
 
 def _user():
@@ -190,27 +193,83 @@ def _dexa_rows(user):
     return _rows_for_user(table, user)
 
 
-def _dump_scans(user):
-    rows = []
-    for scan in _dexa_rows(user):
-        media = _cell(scan, "file")
+def _scan_values(scan) -> dict:
+    """Metrics live in extracted_json. Rows stored before that also had dedicated columns; fold them in once."""
+    try:
+        values = json.loads(_cell(scan, "extracted_json") or "{}")
+    except (TypeError, ValueError):
+        values = {}
+    moved = False
+    for key in LEGACY_SCAN_COLUMNS:
+        if values.get(key) is None and _cell(scan, key) is not None:
+            values[key] = _cell(scan, key)
+            moved = True
+    if moved:
         try:
-            extra = json.loads(_cell(scan, "extracted_json") or "{}")
-        except (TypeError, ValueError):
-            extra = {}
+            scan["extracted_json"] = json.dumps(values)
+        except Exception:
+            pass
+    return values
+
+
+def _sorted_scans(user):
+    """Oldest first. Same-day scans order by upload time, then by how many metrics they carry."""
+    def key(scan):
+        values = _scan_values(scan)
+        return (
+            _cell(scan, "measured_on") or date.min,
+            _iso(_cell(scan, "created_at")) or "",
+            sum(1 for name in SCAN_METRICS if values.get(name) is not None),
+        )
+    return sorted(_dexa_rows(user), key=key)
+
+
+def _dump_scans(user, start_date=None):
+    rows = []
+    for scan in _sorted_scans(user):
+        media = _cell(scan, "file")
+        values = _scan_values(scan)
+        measured = _cell(scan, "measured_on")
         item = {
-            "measured_on": _iso(_cell(scan, "measured_on")),
-            "week_index": _cell(scan, "week_index"),
-            "bf_percent": _cell(scan, "bf_percent"),
-            "ffm_kg": _cell(scan, "ffm_kg"),
-            "rmr_kcal": _cell(scan, "rmr_kcal"),
+            "id": scan.get_id(),
+            "measured_on": _iso(measured),
+            "week_index": week_index_for(measured, start_date) if measured and start_date else None,
+            "created_at": _iso(_cell(scan, "created_at")),
             "filename": getattr(media, "name", None) if media is not None else None,
+            "source": values.get("source"),
         }
-        for key in EXTRA_METRICS:
-            item[key] = extra.get(key)
+        for key in SCAN_METRICS:
+            item[key] = values.get(key)
         rows.append(item)
-    rows.sort(key=lambda item: item["measured_on"] or "")
     return rows
+
+
+def _anchor_latest_scan(profile, user) -> None:
+    """The newest stored scan is the plan's DEXA anchor. With no scans left the plan falls back to tape."""
+    scans = _sorted_scans(user)
+    values = _scan_values(scans[-1]) if scans else {}
+    _write_dexa(profile, {
+        "dexa_measured_on": _cell(scans[-1], "measured_on") if scans else None,
+        "dexa_bf_percent": values.get("bf_percent"),
+        "dexa_ffm_kg": values.get("ffm_kg"),
+        "dexa_rmr_kcal": values.get("rmr_kcal"),
+    })
+    _apply_proposal(profile, propose_plan(**plan_kwargs_from_profile(_row_as_profile(profile))))
+
+
+def _now():
+    return datetime.now(timezone.utc)
+
+
+def _add_row(table, **columns):
+    """Stamp created_at where the table has that column; older schemas without it still accept the row."""
+    try:
+        names = {column["name"] for column in table.list_columns()}
+    except Exception:
+        names = set()
+    if "created_at" in names:
+        columns["created_at"] = _now()
+    return table.add_row(**columns)
 
 
 def _write_dexa(profile, payload):
@@ -249,6 +308,7 @@ def _dump(profile, weights, logs) -> dict:
     current_week = week_index_for(date.today(), profile["start_date"])
     current_row = next((row for row in schedule if row["week"] == current_week), schedule[0] if schedule else None)
     last_log = logs[-1] if logs else None
+    scans = _dump_scans(_user(), profile["start_date"])
     return {
         "has_plan": True,
         "phase": profile["phase"],
@@ -291,10 +351,10 @@ def _dump(profile, weights, logs) -> dict:
         "dexa_weeks": sorted({
             int(week)
             for week in dexa_weeks(_cell(profile, "dexa_measured_on"), profile["start_date"], week_index_for)
-            + [_cell(scan, "week_index") for scan in _dexa_rows(_user())]
+            + [scan["week_index"] for scan in scans]
             if week
         }),
-        "dexa_scans": _dump_scans(_user()),
+        "dexa_scans": scans,
         "schedule": schedule,
         "email": _user()["email"],
     }
@@ -313,7 +373,11 @@ def bodycomp_get_plan():
 
 @anvil.server.callable
 def bodycomp_save_plan(payload: dict):
+    """DEXA values are not edited here; the plan keeps the anchor from the latest stored scan."""
     user = _user()
+    rows = _rows_for_user(app_tables.profiles, user)
+    existing = rows[0] if rows else None
+    dexa_rmr = _cell(existing, "dexa_rmr_kcal") if existing else None
     proposal = propose_plan(
         sex=payload["sex"],
         born=payload["date_of_birth"],
@@ -327,15 +391,11 @@ def bodycomp_save_plan(payload: dict):
         start=payload["start_date"],
         outcome=payload["outcome"],
         chain_gain=bool(payload.get("chain_gain")),
-        dexa_bf_percent=payload.get("dexa_bf_percent"),
-        dexa_ffm_kg=payload.get("dexa_ffm_kg"),
-        dexa_rmr_kcal=int(payload["dexa_rmr_kcal"]) if payload.get("dexa_rmr_kcal") not in (None, "") else None,
+        dexa_bf_percent=_cell(existing, "dexa_bf_percent") if existing else None,
+        dexa_ffm_kg=_cell(existing, "dexa_ffm_kg") if existing else None,
+        dexa_rmr_kcal=int(dexa_rmr) if dexa_rmr not in (None, "") else None,
     )
-    rows = _rows_for_user(app_tables.profiles, user)
-    if rows:
-        profile = rows[0]
-    else:
-        profile = app_tables.profiles.add_row(user=user, coach_state_json="{}")
+    profile = existing or _add_row(app_tables.profiles, user=user, coach_state_json="{}")
     profile["sex"] = payload["sex"]
     profile["date_of_birth"] = payload["date_of_birth"]
     profile["height_cm"] = float(payload["height_cm"])
@@ -350,7 +410,6 @@ def bodycomp_save_plan(payload: dict):
     profile["chain_gain"] = bool(payload.get("chain_gain")) or (
         proposal.phase == "cut" and any(p.name == "bulk" for p in proposal.phases)
     )
-    _write_dexa(profile, payload)
     _apply_proposal(profile, proposal)
     profile, weights, logs = _load_bundle(user)
     return _dump(profile, weights, logs)
@@ -409,7 +468,7 @@ def bodycomp_log_weight(weight_kg: float, logged_on=None):
         row["weight_kg"] = float(weight_kg)
         row.update()
     else:
-        app_tables.weight_logs.add_row(user=user, logged_on=logged_on, weight_kg=float(weight_kg))
+        _add_row(app_tables.weight_logs, user=user, logged_on=logged_on, weight_kg=float(weight_kg))
     profile, weights, logs = _load_bundle(user)
     if profile is None:
         return {"has_plan": False}
@@ -433,7 +492,7 @@ def bodycomp_check_in(week_index: int, payload: dict | None = None):
     if avg_weight is None:
         avg_weight = average_weight_in_week([(w["logged_on"], w["weight_kg"]) for w in weights], week_start)
     existing = _rows_for_user(app_tables.week_logs, user, week_index=week_index)
-    log = existing[0] if existing else app_tables.week_logs.add_row(user=user, week_index=week_index)
+    log = existing[0] if existing else _add_row(app_tables.week_logs, user=user, week_index=week_index)
     if existing and _cell(log, "check_in_date"):
         check_in_date = log["check_in_date"]
     log["check_in_date"] = check_in_date
@@ -578,41 +637,50 @@ def bodycomp_store_dexa(media, payload=None):
     missing = missing_required(payload)
     if missing:
         raise AuthError("Fill in the scan date, body fat, fat-free mass, and RMR before storing.")
-    parsed = dict((key, payload.get(key)) for key in EXTRA_METRICS)
-    parsed["source"] = payload.get("source") or "manual"
-    measured = _as_date(payload.get("dexa_measured_on"))
-    bf = float(payload["dexa_bf_percent"])
-    ffm = float(payload["dexa_ffm_kg"])
-    rmr = int(payload["dexa_rmr_kcal"])
-    profile_rows = _rows_for_user(app_tables.profiles, user)
-    start = profile_rows[0]["start_date"] if profile_rows else date.today()
-    week = week_index_for(measured or date.today(), start)
+    values = dict((key, payload.get(key)) for key in EXTRA_METRICS)
+    values["bf_percent"] = float(payload["dexa_bf_percent"])
+    values["ffm_kg"] = float(payload["dexa_ffm_kg"])
+    values["rmr_kcal"] = int(payload["dexa_rmr_kcal"])
+    values["source"] = payload.get("source") or "manual"
     table = _dexa_table()
     if table is None:
         raise AuthError("DEXA storage is not available yet. Restart the app after the schema update.")
-    table.add_row(
+    _add_row(
+        table,
         user=user,
-        measured_on=measured,
-        week_index=week,
-        bf_percent=bf,
-        ffm_kg=ffm,
-        rmr_kcal=rmr,
+        measured_on=_as_date(payload.get("dexa_measured_on")),
         file=media,
-        extracted_json=json.dumps(parsed),
+        extracted_json=json.dumps(values),
         notes=payload.get("notes") or "",
     )
+    return _reanchor(user)
+
+
+@anvil.server.callable
+def bodycomp_delete_dexa(scan_id):
+    user = _user()
+    table = _dexa_table()
+    scan = table.get_by_id(scan_id) if table is not None and scan_id else None
+    if scan is None or not _same_user(_cell(scan, "user"), user):
+        raise AuthError("That scan was not found.")
+    scan.delete()
+    return _reanchor(user)
+
+
+@anvil.server.callable
+def bodycomp_dexa_file(scan_id):
+    user = _user()
+    table = _dexa_table()
+    scan = table.get_by_id(scan_id) if table is not None and scan_id else None
+    if scan is None or not _same_user(_cell(scan, "user"), user):
+        raise AuthError("That scan was not found.")
+    return _cell(scan, "file")
+
+
+def _reanchor(user):
+    profile_rows = _rows_for_user(app_tables.profiles, user)
     if profile_rows:
-        profile = profile_rows[0]
-        _write_dexa(
-            profile,
-            {
-                "dexa_measured_on": measured,
-                "dexa_bf_percent": bf,
-                "dexa_ffm_kg": ffm,
-                "dexa_rmr_kcal": rmr,
-            },
-        )
-        _apply_proposal(profile, propose_plan(**plan_kwargs_from_profile(_row_as_profile(profile))))
+        _anchor_latest_scan(profile_rows[0], user)
     profile, weights, logs = _load_bundle(user)
     if profile is None:
         return {"has_plan": False}

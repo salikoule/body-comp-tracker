@@ -16,6 +16,7 @@ NAV = (
     ("Dashboard", "/dashboard", "fa:chart-pie", True),
     ("Weekly tracker", "/tracker", "fa:table-list", True),
     ("Progress", "/progress", "fa:chart-line", True),
+    ("DEXA scans", "/dexa", "fa:x-ray", True),
     ("Check-in", "/checkin", "fa:clipboard-check", False),
 )
 

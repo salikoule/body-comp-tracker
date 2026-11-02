@@ -5,13 +5,10 @@ db_schema:
     columns:
     - {name: user, target: users, type: link_single}
     - {name: measured_on, type: date}
-    - {name: week_index, type: number}
-    - {name: bf_percent, type: number}
-    - {name: ffm_kg, type: number}
-    - {name: rmr_kcal, type: number}
     - {name: file, type: media}
     - {name: extracted_json, type: string}
     - {name: notes, type: string}
+    - {name: created_at, type: datetime}
     server: full
     title: DEXA scans
   profiles:
@@ -47,6 +44,7 @@ db_schema:
     - {name: dexa_ffm_kg, type: number}
     - {name: dexa_rmr_kcal, type: number}
     - {name: dexa_measured_on, type: date}
+    - {name: created_at, type: datetime}
     server: full
     title: Profiles
   users:
@@ -93,6 +91,7 @@ db_schema:
     - {name: notes, type: string}
     - {name: next_calories, type: number}
     - {name: adjustment_reason, type: string}
+    - {name: created_at, type: datetime}
     server: full
     title: Week logs
   weight_logs:
@@ -101,6 +100,7 @@ db_schema:
     - {name: user, target: users, type: link_single}
     - {name: logged_on, type: date}
     - {name: weight_kg, type: number}
+    - {name: created_at, type: datetime}
     server: full
     title: Weight logs
 dependencies:

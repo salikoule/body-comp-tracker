@@ -123,6 +123,7 @@ PAGE_PATHS = {
     "dashboard": "/dashboard",
     "tracker": "/tracker",
     "progress": "/progress",
+    "dexa": "/dexa",
     "checkin": "/checkin",
     "plan": "/plan",
     "profile": "/profile",
