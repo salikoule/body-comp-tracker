@@ -58,3 +58,33 @@ ICON = {
 
 PHASE_ICON = {"cut": "down", "reverse": "reverse", "bulk": "up", "recomp": "scale"}
 PHASE_TONE = {"cut": "accent", "reverse": "warn", "bulk": "ok", "recomp": "muted"}
+
+
+def symbol(name, color):
+    """A Material Symbols glyph in a soft chip of its own colour."""
+    return '<span class="bc-sym material-symbols-outlined" style="color:%s" aria-hidden="true">%s</span>' % (color, name)
+
+
+KPI = {
+    "calories": ("local_fire_department", "#ea580c"),
+    "protein": ("egg_alt", "#1e3a5f"),
+    "fat": ("water_drop", "#d97706"),
+    "carbs": ("bakery_dining", "#0284c7"),
+    "target": ("flag", "#0f766e"),
+    "week": ("calendar_today", "#2563eb"),
+    "weight": ("monitor_weight", "#0f766e"),
+    "body_fat": ("body_fat", "#b45309"),
+    "rate": ("speed", "#2563eb"),
+    "lane": ("verified", "#059669"),
+    "rmr": ("bolt", "#ea580c"),
+    "tdee": ("local_fire_department", "#ea580c"),
+    "finish": ("event", "#7c3aed"),
+    "visceral": ("cardiology", "#dc2626"),
+    "lean": ("fitness_center", "#0f766e"),
+    "bone": ("skeleton", "#64748b"),
+}
+
+
+def chip(key):
+    name, color = KPI[key]
+    return symbol(name, color)

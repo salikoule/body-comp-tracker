@@ -115,13 +115,29 @@ def sparkline(values, color=NAVY):
     )
 
 
+TILE_ICONS = (
+    ("Body fat", "body_fat", "#b45309"),
+    ("Weekly rate", "speed", "#2563eb"),
+    ("Weeks in lane", "verified", "#059669"),
+    ("Trend weight", "monitor_weight", "#0f766e"),
+    ("Weight", "monitor_weight", "#0f766e"),
+)
+
+
+def _tile_icon(label):
+    for prefix, name, color in TILE_ICONS:
+        if label.startswith(prefix):
+            return '<span class="bc-sym material-symbols-outlined" style="color:%s" aria-hidden="true">%s</span>' % (color, name)
+    return ""
+
+
 def _tile(label, value, unit, delta, tone, foot):
     return (
-        '<div class="bc-pg-tile"><div class="bc-pg-tile-label">%s</div>'
+        '<div class="bc-pg-tile"><div class="bc-pg-tile-label">%s<span>%s</span></div>'
         '<div class="bc-pg-tile-value">%s<small>%s</small></div>'
         '<div class="bc-pg-tile-delta is-%s">%s</div>'
         '<div class="bc-pg-tile-foot">%s</div></div>'
-        % (esc(label), esc(value), esc(unit), tone, esc(delta), foot)
+        % (_tile_icon(label), esc(label), esc(value), esc(unit), tone, esc(delta), foot)
     )
 
 

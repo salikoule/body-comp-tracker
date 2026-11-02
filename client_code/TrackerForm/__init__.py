@@ -246,12 +246,12 @@ class TrackerForm(TrackerFormTemplate):
         )
         kpis = Layout.grid(
             "repeat(auto-fit, minmax(170px, 1fr))",
-            KpiCard(title="This week", value="Week %s" % self._current, subtitle=Format.date_label(row.get("week_start"))),
-            KpiCard(title="Target weight", value=Format.number(row.get("target_weight_kg"), 1, "kg"),
+            KpiCard(title="This week", icon=Icons.KPI["week"][0], icon_color=Icons.KPI["week"][1], value="Week %s" % self._current, subtitle=Format.date_label(row.get("week_start"))),
+            KpiCard(title="Target weight", icon=Icons.KPI["weight"][0], icon_color=Icons.KPI["weight"][1], value=Format.number(row.get("target_weight_kg"), 1, "kg"),
                     subtitle="Actual %s" % Format.number(row.get("actual_weight_kg"), 1, "kg")),
-            KpiCard(title="Body fat target", value=Format.percent(row.get("target_bf_percent")),
+            KpiCard(title="Body fat target", icon=Icons.KPI["body_fat"][0], icon_color=Icons.KPI["body_fat"][1], value=Format.percent(row.get("target_bf_percent")),
                     subtitle="Actual %s" % Format.percent(row.get("bf_percent"))),
-            KpiCard(title="Calories", value=Format.number(row.get("target_calories"), 0, "kcal"),
+            KpiCard(title="Calories", icon=Icons.KPI["calories"][0], icon_color=Icons.KPI["calories"][1], value=Format.number(row.get("target_calories"), 0, "kcal"),
                     subtitle="P %s · F %s · C %s g" % (row.get("protein_g"), row.get("fat_g"), row.get("carbs_g"))),
         )
         table_card = Layout.section(

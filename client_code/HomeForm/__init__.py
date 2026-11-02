@@ -10,7 +10,7 @@ from craftify_library.CustomComponents.ChartCard import ChartCard
 from craftify_library.CustomComponents.EChart import EChart
 from craftify_library.CustomComponents.KpiCard import KpiCard
 from craftify_library.CraftifyUtils.echarts_theme import apply_craftify_echarts_theme
-from body_comp_tracker import Format, Layout
+from body_comp_tracker import Icons, Format, Layout
 
 
 class HomeForm(HomeFormTemplate):
@@ -54,12 +54,12 @@ class HomeForm(HomeFormTemplate):
         calories = row.get("target_calories") or s.get("calories")
         return Layout.grid(
             "repeat(auto-fit, minmax(170px, 1fr))",
-            KpiCard(title="Eat this week", value=Format.number(calories, 0, "kcal"),
+            KpiCard(title="Eat this week", value=Format.number(calories, 0, "kcal"), icon=Icons.KPI["calories"][0], icon_color=Icons.KPI["calories"][1],
                     subtitle="Maintenance ~%s" % Format.number(s.get("tdee"), 0, "kcal")),
-            KpiCard(title="Protein", value=Format.number(row.get("protein_g") or s.get("protein_g"), 0, "g"), subtitle="Per day"),
-            KpiCard(title="Fat", value=Format.number(row.get("fat_g") or s.get("fat_g"), 0, "g"), subtitle="Per day"),
-            KpiCard(title="Carbs", value=Format.number(row.get("carbs_g") or s.get("carbs_g"), 0, "g"), subtitle="Per day"),
-            KpiCard(title="Target this week", value=Format.number(row.get("target_weight_kg"), 1, "kg"),
+            KpiCard(title="Protein", icon=Icons.KPI["protein"][0], icon_color=Icons.KPI["protein"][1], value=Format.number(row.get("protein_g") or s.get("protein_g"), 0, "g"), subtitle="Per day"),
+            KpiCard(title="Fat", icon=Icons.KPI["fat"][0], icon_color=Icons.KPI["fat"][1], value=Format.number(row.get("fat_g") or s.get("fat_g"), 0, "g"), subtitle="Per day"),
+            KpiCard(title="Carbs", icon=Icons.KPI["carbs"][0], icon_color=Icons.KPI["carbs"][1], value=Format.number(row.get("carbs_g") or s.get("carbs_g"), 0, "g"), subtitle="Per day"),
+            KpiCard(title="Target this week", icon=Icons.KPI["target"][0], icon_color=Icons.KPI["target"][1], value=Format.number(row.get("target_weight_kg"), 1, "kg"),
                     subtitle="Latest %s" % Format.number(s.get("latest_weight_kg"), 1, "kg")),
         )
 

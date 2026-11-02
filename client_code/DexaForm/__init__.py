@@ -12,7 +12,7 @@ import anvil.server
 from craftify_library.CraftifyUtils import dialogs
 from craftify_library.CustomComponents.EChart import EChart
 from craftify_library.CustomComponents.FileDrop import FileDrop
-from body_comp_tracker import Format, Layout, ScanImages
+from body_comp_tracker import Format, Icons, Layout, ScanImages
 from body_comp_tracker import DexaMap
 from body_comp_tracker import DexaRatings as Ratings
 from body_comp_tracker import RoadmapView as Road
@@ -30,6 +30,7 @@ HISTORY_COLUMNS = (
     ("RMR", "rmr_kcal", 0, "kcal"),
     ("Uploaded", "created_at", 0, ""),
 )
+DEXA_ICONS = {"bf_percent": "body_fat", "vat_g": "visceral", "ffmi": "lean", "rmr_kcal": "rmr", "bmc_kg": "bone"}
 REQUIRED_LABELS = {
     "dexa_measured_on": "scan date",
     "dexa_bf_percent": "body fat",
@@ -322,11 +323,12 @@ class DexaForm(DexaFormTemplate):
         unit = '<small>%s</small>' % Layout.esc(item["unit"]) if item["unit"] else ""
         return (
             '<div class="bc-dx-card is-%s">'
-            '<div class="bc-dx-top"><span>%s</span><em>%s</em></div>'
+            '<div class="bc-dx-top"><span>%s%s</span><em>%s</em></div>'
             '<div class="bc-dx-value">%s%s%s</div>%s'
             '<p class="bc-dx-sum">%s</p><p class="bc-dx-detail">%s</p>'
             '</div>'
-        ) % (item["tone"], Layout.esc(item["label"]), Layout.esc(item["verdict"]), Layout.esc(item["display"]), unit,
+        ) % (item["tone"], Icons.chip(DEXA_ICONS[item["key"]]) if item["key"] in DEXA_ICONS else "",
+             Layout.esc(item["label"]), Layout.esc(item["verdict"]), Layout.esc(item["display"]), unit,
              delta, bar, Layout.esc(item["summary"]), Layout.esc(item["detail"]))
 
     def _upload_card(self):

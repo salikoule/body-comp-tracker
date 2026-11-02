@@ -5,7 +5,7 @@ import anvil.google.auth, anvil.google.drive
 from anvil.google.drive import app_files
 import anvil.server
 from craftify_library.CustomComponents.KpiCard import KpiCard
-from body_comp_tracker import Format, Layout
+from body_comp_tracker import Icons, Format, Layout
 
 RULES = (
     "Cut rate defaults to 0.5% of body weight per week.",
@@ -39,11 +39,11 @@ class PlanForm(PlanFormTemplate):
         )
         kpis = Layout.grid(
             "repeat(auto-fit, minmax(170px, 1fr))",
-            KpiCard(title="RMR (DEXA)" if s.get("bmr_source") == "dexa_rmr" else "BMR",
+            KpiCard(title="RMR (DEXA)" if s.get("bmr_source") == "dexa_rmr" else "BMR", icon=Icons.KPI["rmr"][0], icon_color=Icons.KPI["rmr"][1],
                     value=Format.number(s.get("bmr"), 0, "kcal"), subtitle="Energy at rest"),
-            KpiCard(title="TDEE", value=Format.number(s.get("tdee"), 0, "kcal"), subtitle="Maintenance estimate"),
-            KpiCard(title="Weekly rate", value=Format.number(s.get("weekly_rate_kg"), 2, "kg"), subtitle="Planned change per week"),
-            KpiCard(title="Forecast finish", value=Format.date_label(s.get("forecast_end")), subtitle="End of current plan"),
+            KpiCard(title="TDEE", icon=Icons.KPI["tdee"][0], icon_color=Icons.KPI["tdee"][1], value=Format.number(s.get("tdee"), 0, "kcal"), subtitle="Maintenance estimate"),
+            KpiCard(title="Weekly rate", icon=Icons.KPI["rate"][0], icon_color=Icons.KPI["rate"][1], value=Format.number(s.get("weekly_rate_kg"), 2, "kg"), subtitle="Planned change per week"),
+            KpiCard(title="Forecast finish", icon=Icons.KPI["finish"][0], icon_color=Icons.KPI["finish"][1], value=Format.date_label(s.get("forecast_end")), subtitle="End of current plan"),
         )
         phases = []
         for phase in s.get("phases") or []:
