@@ -103,7 +103,7 @@ def clean(raw, context):
 
 def _ask(context, key, model):
     import urllib.error
-    import urllib.request
+    from craftify_library.CraftifyAI import chat_completion
 
     body = {
         "model": model,
@@ -114,15 +114,8 @@ def _ask(context, key, model):
             {"role": "user", "content": json.dumps(context, default=str)},
         ],
     }
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(body).encode(),
-        headers={"Authorization": "Bearer %s" % key, "Content-Type": "application/json"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            payload = json.loads(resp.read().decode())
+        payload = chat_completion(body, "Coach review", key=key, timeout=25)
     except urllib.error.HTTPError as err:
         if err.code == 401:
             raise CoachError("OpenAI rejected the key in Settings → AI.") from err

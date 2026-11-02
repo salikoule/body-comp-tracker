@@ -42,7 +42,7 @@ HERO_CARD = """
     <div anvil-slot="chart"></div>
     <div class="bc-pg-hero-note" anvil-name="note">
       <b>Your trend appears after 3 weigh-ins</b>
-      <span>Step on the scale each morning and log it on Check-in. The forecast follows after a week of data.</span>
+      <span>Step on the scale each morning and log it on the Dashboard. The forecast follows after a week of data.</span>
     </div>
   </div>
   <div class="bc-pg-legend" anvil-name="legend">

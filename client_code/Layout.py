@@ -124,7 +124,6 @@ PAGE_PATHS = {
     "tracker": "/tracker",
     "progress": "/progress",
     "dexa": "/dexa",
-    "checkin": "/checkin",
     "plan": "/plan",
     "profile": "/profile",
 }
@@ -149,7 +148,7 @@ def navigate(page, **kwargs):
         open_settings(page)
         return
     week = kwargs.pop("week", None)
-    if page == "checkin" and week is not None:
-        routing_navigate(path="/checkin/:week", params={"week": week}, form_properties=kwargs)
+    if page == "checkin":
+        routing_navigate(path="/tracker", query={"checkin": week or "current"}, form_properties=kwargs)
         return
     routing_navigate(path=PAGE_PATHS.get(page) or "/dashboard", form_properties=kwargs)

@@ -1,5 +1,23 @@
 allow_embedding: false
 db_schema:
+  ai_usage:
+    client: none
+    columns:
+    - {name: user, target: users, type: link_single}
+    - {name: at, type: datetime}
+    - {name: feature, type: string}
+    - {name: model, type: string}
+    - {name: input_tokens, type: number}
+    - {name: cached_tokens, type: number}
+    - {name: output_tokens, type: number}
+    - {name: reasoning_tokens, type: number}
+    - {name: cost_usd, type: number}
+    - {name: latency_ms, type: number}
+    - {name: status, type: string}
+    - {name: error, type: string}
+    - {name: request_id, type: string}
+    server: full
+    title: AI usage
   dexa_scans:
     client: none
     columns:

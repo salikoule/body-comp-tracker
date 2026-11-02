@@ -166,6 +166,32 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
+.bc-ci-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border: 1px solid var(--bc-line, #e2e8f0);
+  border-radius: 12px;
+  background: var(--bc-soft, #f8fafc);
+  font-family: Montserrat, system-ui, sans-serif;
+}
+.bc-ci-summary > div { padding: 10px 14px; }
+.bc-ci-summary > div + div { border-left: 1px solid var(--bc-line, #e2e8f0); }
+.bc-ci-summary dt {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bc-muted);
+}
+.bc-ci-summary dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
 .bc-rules {
   margin: 0;
   padding-left: 18px;

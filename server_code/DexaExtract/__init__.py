@@ -171,7 +171,7 @@ def _strip_parts(strips) -> list[dict[str, Any]]:
 
 def _openai_read(parts: list[dict[str, Any]], key: str) -> dict[str, Any]:
     import urllib.error
-    import urllib.request
+    from craftify_library.CraftifyAI import chat_completion
 
     intro = "Read this DEXA report."
     if parts and parts[0]["type"] == "image_url":
@@ -185,15 +185,8 @@ def _openai_read(parts: list[dict[str, Any]], key: str) -> dict[str, Any]:
             {"role": "user", "content": [{"type": "text", "text": intro}] + parts},
         ],
     }
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/chat/completions",
-        data=json.dumps(body).encode(),
-        headers={"Authorization": "Bearer %s" % key, "Content-Type": "application/json"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            payload = json.loads(resp.read().decode())
+        payload = chat_completion(body, "DEXA scan reading", key=key, timeout=25)
     except urllib.error.HTTPError as err:
         raise DexaReadError(_http_reason(err)) from err
     except Exception as err:

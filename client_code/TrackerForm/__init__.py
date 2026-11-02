@@ -7,7 +7,7 @@ import anvil.server
 from craftify_library.Startup import configure as configure_craftify_client
 from craftify_library.CustomComponents.KpiCard import KpiCard
 from tabulator.Tabulator import Tabulator
-from body_comp_tracker import Format, Icons, Layout
+from body_comp_tracker import CheckIn, Format, Icons, Layout
 
 EMPTY = '<span class="bc-empty">—</span>'
 STATUS = {
@@ -225,7 +225,18 @@ class TrackerForm(TrackerFormTemplate):
     def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         configure_craftify_client()
-        state = anvil.server.call("bodycomp_get_plan")
+        self._resize_bound = False
+        self._drawer = None
+        self._render(anvil.server.call("bodycomp_get_plan"))
+        query = getattr(routing_context, "query", None) or {}
+        if query.get("checkin") and self._state.get("has_plan"):
+            self._clear_query()
+            from anvil.js.window import setTimeout
+            setTimeout(lambda: self._checkin(query.get("checkin")), 0)
+
+    def _render(self, state):
+        self._state = state
+        self.clear()
         if not state.get("has_plan"):
             self.add_component(
                 Layout.stack(
@@ -256,7 +267,7 @@ class TrackerForm(TrackerFormTemplate):
         )
         table_card = Layout.section(
             "All weeks",
-            "Target columns are muted; actual columns are bold. The current week is highlighted. Edit opens that week's check-in.",
+            "Target columns are muted; actual columns are bold. The current week is highlighted. Edit opens that week's check-in in a side panel.",
             padded=False,
         )
         Layout.body(table_card, self._table(state))
@@ -291,9 +302,12 @@ class TrackerForm(TrackerFormTemplate):
     def _on_table_built(self, **event_args):
         self._fill_table_height()
         self._scroll_to_current()
+        if self._resize_bound:
+            return
         try:
             from anvil.js import window
             window.addEventListener("resize", self._fill_table_height)
+            self._resize_bound = True
         except Exception:
             pass
 
@@ -352,10 +366,23 @@ class TrackerForm(TrackerFormTemplate):
             return
         week = data.get("week")
         if week:
-            Layout.navigate("checkin", week=week)
+            self._checkin(week)
 
     def _open_checkin(self, **event_args):
-        Layout.navigate("checkin")
+        self._checkin(None)
+
+    def _checkin(self, week):
+        if self._drawer is not None and self._drawer.is_open:
+            return
+        panel = CheckIn.CheckInPanel(self._state, CheckIn.week_for(self._state, week), on_saved=self._render)
+        self._drawer = panel.open(self)
+
+    def _clear_query(self):
+        try:
+            from anvil.js import window
+            window.history.replaceState(window.history.state, "", window.location.pathname)
+        except Exception:
+            pass
 
     def _open_profile(self, **event_args):
         Layout.navigate("profile")

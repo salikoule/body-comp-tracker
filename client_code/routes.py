@@ -55,21 +55,19 @@ class DexaRoute(AppPage):
     form = "DexaForm"
 
 
-class CheckInRoute(AppPage):
+class CheckInRoute(Route):
     path = "/checkin"
-    form = "CheckInForm"
+
+    def before_load(self, **loader_args):
+        raise Redirect(path="/tracker", query={"checkin": "current"})
 
 
-class CheckInWeekRoute(AppPage):
+class CheckInWeekRoute(Route):
     path = "/checkin/:week"
-    form = "CheckInForm"
 
-    def parse_params(self, params):
-        week = params.get("week")
-        try:
-            return {"week": int(week)}
-        except (TypeError, ValueError):
-            return {"week": week}
+    def before_load(self, **loader_args):
+        week = (loader_args.get("params") or {}).get("week") or "current"
+        raise Redirect(path="/tracker", query={"checkin": week})
 
 
 class PlanRoute(Route):

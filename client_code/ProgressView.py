@@ -153,7 +153,7 @@ def _weight_tile(model):
         return _tile("Trend weight", "%.1f" % model["trend_now"], "kg", "%s kg vs plan" % signed(gap), tone, sparkline(recent))
     last = _last(model["logged"])
     if last is None:
-        return _tile("Weight", "—", "", "No check-ins yet", "neutral", _foot_note("Log your first week on Check-in"))
+        return _tile("Weight", "—", "", "No check-ins yet", "neutral", _foot_note("Log your first week with Sunday check-in"))
     actual = _to_float(last.get("actual_weight_kg"))
     gap = actual - (_to_float(last.get("target_weight_kg")) or actual)
     hit = abs(gap) <= WEIGHT_LANE_KG + 1e-9
