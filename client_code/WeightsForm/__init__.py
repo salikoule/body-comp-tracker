@@ -4,14 +4,18 @@ from ._anvil_designer import WeightsFormTemplate
 from anvil import *
 from routing import router
 import anvil.server
-from craftify_library.CraftifyUtils import dialogs
+from craftify_library.CraftifyUtils import dialogs, drawer
 from craftify_library.CustomComponents.KpiCard import KpiCard
 from tabulator.Tabulator import Tabulator
 from body_comp_tracker import Format, Icons, Layout, WeightsView as View
 
 EMPTY = '<span class="bc-empty">—</span>'
 TABLE_OPTIONS = {
-    "pagination": False,
+    "pagination": True,
+    "paginationMode": "local",
+    "paginationSize": 10,
+    "paginationCounter": "rows",
+    "height": 480,
     "index": "date",
     "css_class": ["table-striped", "table-bordered"],
     "layout": "fitColumns",
@@ -62,6 +66,25 @@ COLUMNS = [
 ]
 
 
+def _row_date(cell):
+    try:
+        return dict(cell.getRow().getData()).get("date")
+    except Exception:
+        return None
+
+
+def _parse_day(value):
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        parts = [int(part) for part in str(value)[:10].split("-")]
+        return date(parts[0], parts[1], parts[2])
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
 def _picked(picker):
     value = picker.date
     if isinstance(value, datetime):
@@ -74,9 +97,12 @@ def _picked(picker):
 class WeightsForm(WeightsFormTemplate):
     def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
+        self._drawer = None
         self._render(anvil.server.call("bodycomp_get_plan"))
 
     def _render(self, state):
+        if self._drawer is not None and self._drawer.is_open:
+            self._drawer.close()
         self._state = state
         self.clear()
         if not state.get("has_plan"):
@@ -93,10 +119,11 @@ class WeightsForm(WeightsFormTemplate):
         header = Layout.page_header(
             "Weigh-ins",
             eyebrow=Format.eyebrow(state),
-            description="Every morning weigh-in, newest first. Add a missed day by choosing its date.",
+            description="Every morning weigh-in, newest first. Edit opens that morning in a side panel.",
+            actions=(Layout.button("Log a weigh-in", self._log_new, primary=True),),
         )
         self.add_component(
-            Layout.stack(header, self._kpis(state), self._log_card(), self._list_card(rows)),
+            Layout.stack(header, self._kpis(state), self._list_card(rows)),
             full_width_row=True,
         )
 
@@ -132,30 +159,43 @@ class WeightsForm(WeightsFormTemplate):
                     value="%s day%s" % (stats["streak"], "" if stats["streak"] == 1 else "s"), subtitle=streak_note),
         )
 
-    def _log_card(self):
-        card = Layout.section("Log a weigh-in", "Choose today, or an earlier date to fill in a missed morning.")
+    def _log_new(self, **event_args):
+        self._open_editor(None)
+
+    def _open_editor(self, day):
+        if self._drawer is not None and self._drawer.is_open and not self._drawer.close(force=False):
+            return
         today = date.today()
+        picked = _parse_day(day) or today
+        existing = self._by_date.get(picked.isoformat())
         self.when = DatePicker(
-            format="%d %b %Y", placeholder="Choose a date", date=today,
+            format="%d %b %Y", placeholder="Choose a date", date=picked,
             min_date=date(today.year - 5, 1, 1), max_date=today,
         )
-        self.kg = TextBox(type="number", placeholder="kg")
-        self.save = Layout.button("Save weigh-in", self._save, primary=True)
+        self.kg = TextBox(type="number", placeholder="kg", text="" if existing is None else "%.1f" % existing)
+        self.save = Layout.button("Update this date" if existing is not None else "Save weigh-in", self._save, primary=True)
+        self.cancel = Layout.button("Cancel", self._cancel)
+        self._hint = Layout.html('<p anvil-name="hint" class="bc-note bc-note-muted"></p>')
         self.when.set_event_handler("change", self._sync_date)
         self.kg.set_event_handler("pressed_enter", self._save)
-        self._hint = Layout.html('<p anvil-name="hint" class="bc-note bc-note-muted"></p>')
-        Layout.body(
-            card,
-            Layout.grid(
-                "minmax(0, 240px) minmax(0, 180px)",
-                Layout.field("Date", self.when),
-                Layout.field("Weight (kg)", self.kg),
-            ),
+        content = Layout.stack(
+            Layout.field("Date", self.when),
+            Layout.field("Weight (kg)", self.kg),
             self._hint,
-            self.save,
         )
         self._sync_date()
-        return card
+        self._initial = (_picked(self.when), str(self.kg.text or ""))
+        editing = existing is not None
+        self._drawer = drawer.open(
+            content,
+            host=self,
+            title="Edit %s" % Format.date_label(picked) if editing else "Log a weigh-in",
+            subtitle="Saving replaces the weigh-in already stored for this date." if editing else "Choose today, or an earlier date for a missed morning.",
+            eyebrow="Weigh-in",
+            footer=(self.cancel, self.save),
+            width=420,
+            confirm_close=drawer.discard_check(self._is_dirty),
+        )
 
     def _hint_node(self):
         nodes = getattr(self._hint, "dom_nodes", None)
@@ -185,11 +225,17 @@ class WeightsForm(WeightsFormTemplate):
         subtitle = "No weigh-ins yet." if not count else "%s morning%s. Change is from the previous logged day, and a drop is shown in green." % (
             count, "" if count == 1 else "s")
         card = Layout.section("All weigh-ins", subtitle, padded=False)
+        columns = []
+        for column in COLUMNS:
+            item = dict(column)
+            if item["field"] == "edit":
+                item["cell_click"] = lambda event, cell: self._edit(_row_date(cell))
+            elif item["field"] == "delete":
+                item["cell_click"] = lambda event, cell: self._delete(_row_date(cell))
+            columns.append(item)
         table = Tabulator()
-        options = dict(TABLE_OPTIONS)
-        options["height"] = min(560, 72 + 44 * max(count, 3))
-        table.options = options
-        table.columns = COLUMNS
+        table.options = dict(TABLE_OPTIONS)
+        table.columns = columns
         table.data = rows
         table.set_event_handler("cell_click", self._on_cell_click)
         Layout.body(card, table)
@@ -210,22 +256,19 @@ class WeightsForm(WeightsFormTemplate):
             self._delete(day)
 
     def _edit(self, day):
-        try:
-            parts = [int(part) for part in str(day).split("-")]
-            picked = date(parts[0], parts[1], parts[2])
-        except (TypeError, ValueError, IndexError):
+        if not day:
             return
-        self.when.date = picked
-        kg = self._by_date.get(picked.isoformat())
-        if kg is not None:
-            self.kg.text = "%.1f" % kg
-            self.save.text = "Update this date"
-        self._sync_date()
-        try:
-            from anvil.js import get_dom_node
-            get_dom_node(self.when).scrollIntoView()
-        except Exception:
-            pass
+        current = _picked(self.when) if self._drawer is not None and self._drawer.is_open else None
+        if current is not None and current.isoformat() == str(day)[:10]:
+            return
+        self._open_editor(day)
+
+    def _is_dirty(self):
+        return (_picked(self.when), str(self.kg.text or "")) != getattr(self, "_initial", None)
+
+    def _cancel(self, **event_args):
+        if self._drawer is not None:
+            self._drawer.close(force=False)
 
     def _save(self, **event_args):
         day = _picked(self.when)
