@@ -70,6 +70,15 @@ def test_score_week_lane_includes_the_edge():
     assert score_week(dict(row, actual_weight_kg=80.0))["weight_hit"] is False
 
 
+def test_body_fat_misses_only_when_above_the_line():
+    under = {"status": "logged", "bf_percent": 27.5, "target_bf_percent": 28.3}
+    on_the_edge = {"status": "logged", "bf_percent": 28.9, "target_bf_percent": 28.3}
+    over = {"status": "logged", "bf_percent": 29.0, "target_bf_percent": 28.3}
+    assert score_week(under)["bf_hit"] is True
+    assert score_week(on_the_edge)["bf_hit"] is True
+    assert score_week(over)["bf_hit"] is False
+
+
 def test_planned_week_is_unscored():
     assert score_week({"status": "planned", "actual_weight_kg": 80})["weight_hit"] is None
 

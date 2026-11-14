@@ -104,6 +104,13 @@ def _in_lane(delta, lane):
     return abs(delta) <= lane + LANE_EPSILON
 
 
+def _at_or_under(delta, lane):
+    """True when the reading is on the line or below it, with ``lane`` of room above."""
+    if delta is None:
+        return None
+    return delta <= lane + LANE_EPSILON
+
+
 def score_week(row):
     row = row or {}
     week = row.get("week")
@@ -120,7 +127,7 @@ def score_week(row):
 
     bf_hit = None
     if _to_float(row.get("bf_percent")) is not None:
-        bf_hit = _in_lane(
+        bf_hit = _at_or_under(
             _delta("bf_percent", "target_bf_percent", "bf_delta", row),
             BF_LANE_PP,
         )

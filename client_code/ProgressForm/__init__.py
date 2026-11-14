@@ -57,7 +57,7 @@ HERO_CARD = """
 SCORE_CARD = """
 <div class="bc-pg-card">
   <div class="bc-pg-card-h">
-    <div><h3>Week by week</h3><p>Did each week land inside the plan lane (±0.4 kg, ±0.6% body fat)? Click a square.</p></div>
+    <div><h3>Week by week</h3><p>Weight within ±0.4 kg of the line. Body fat misses only when it is more than 0.6 points above the line. Click a square.</p></div>
     <div anvil-name="chip"></div>
   </div>
   <div class="bc-pg-score" anvil-name="grid"></div>
