@@ -45,6 +45,11 @@ class TrackerRoute(AppPage):
     form = "TrackerForm"
 
 
+class WeightsRoute(AppPage):
+    path = "/weights"
+    form = "WeightsForm"
+
+
 class ProgressRoute(AppPage):
     path = "/progress"
     form = "ProgressForm"

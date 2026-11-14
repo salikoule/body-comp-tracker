@@ -802,6 +802,8 @@ html.ipac-dark .left-nav a.anvil-role-selected {
 .bc-co-empty, .bc-co-when { margin: 0; font: 500 13px/1.5 Montserrat, system-ui, sans-serif; color: var(--bc-muted); }
 .bc-co-when { align-self: center; font-size: 12px; }
 
+.tabulator .bc-w-delete { color: var(--bc-bad); border-color: color-mix(in srgb, var(--bc-bad) 35%, var(--bc-line)); }
+
 /* Title icons: a filled Material Symbol in a soft chip of its own colour */
 .bc-sym.material-symbols-outlined {
   display: inline-flex; align-items: center; justify-content: center; flex: none;

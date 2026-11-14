@@ -22,6 +22,7 @@ from Roadmap import goal_check, roadmaps
 
 SCAN_METRICS = ("bf_percent", "ffm_kg", "rmr_kcal") + EXTRA_METRICS
 GOAL_LIMITS = {"bf_percent": (6.0, 35.0), "ffmi": (14.0, 27.0), "training_years": (0.0, 40.0)}
+WEIGHT_RANGE = (30.0, 300.0)
 LEGACY_SCAN_COLUMNS = ("bf_percent", "ffm_kg", "rmr_kcal")
 
 
@@ -619,17 +620,48 @@ def _apply_proposal(profile, proposal):
     profile.update()
 
 
+def _weigh_in(weight_kg, logged_on):
+    """The date and kg to store, or an error message."""
+    try:
+        day = _as_date(logged_on) if logged_on else date.today()
+    except ValueError:
+        return None, None, "Choose a valid date."
+    if isinstance(day, datetime):
+        day = day.date()
+    if day is None:
+        day = date.today()
+    today = date.today()
+    if day > today:
+        return None, None, "Choose today or an earlier date."
+    try:
+        earliest = today.replace(year=today.year - 5)
+    except ValueError:
+        earliest = today.replace(year=today.year - 5, day=28)
+    if day < earliest:
+        return None, None, "Choose a date within the last 5 years."
+    try:
+        kg = round(float(weight_kg), 1)
+    except (TypeError, ValueError):
+        return None, None, "Enter a weight in kg."
+    low, high = WEIGHT_RANGE
+    if not low <= kg <= high:
+        return None, None, "Weight must be between %s and %s kg." % (int(low), int(high))
+    return day, kg, None
+
+
 @anvil.server.callable
 def bodycomp_log_weight(weight_kg: float, logged_on=None):
     user = _user()
-    logged_on = logged_on or date.today()
+    logged_on, weight_kg, problem = _weigh_in(weight_kg, logged_on)
+    if problem:
+        raise AuthError(problem)
     rows = _rows_for_user(app_tables.weight_logs, user, logged_on=logged_on)
     if rows:
         row = rows[0]
-        row["weight_kg"] = float(weight_kg)
+        row["weight_kg"] = weight_kg
         row.update()
     else:
-        _add_row(app_tables.weight_logs, user=user, logged_on=logged_on, weight_kg=float(weight_kg))
+        _add_row(app_tables.weight_logs, user=user, logged_on=logged_on, weight_kg=weight_kg)
     profile, weights, logs = _load_bundle(user)
     if profile is None:
         return {"has_plan": False}

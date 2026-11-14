@@ -15,6 +15,7 @@ from body_comp_tracker.ProfileForm import ProfileForm
 NAV = (
     ("Dashboard", "/dashboard", "fa:chart-pie", True),
     ("Weekly tracker", "/tracker", "fa:table-list", True),
+    ("Weigh-ins", "/weights", "fa:weight-scale", True),
     ("Progress", "/progress", "fa:chart-line", True),
     ("DEXA scans", "/dexa", "fa:x-ray", True),
 )

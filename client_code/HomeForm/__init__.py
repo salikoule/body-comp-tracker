@@ -101,7 +101,7 @@ class HomeForm(HomeFormTemplate):
         return card
 
     def _weigh_in_card(self, s):
-        card = Layout.section("This morning", "Daily logs build the weekly average. They do not change mid-week calories.")
+        card = Layout.section("This morning", "Today's weigh-in. Missed mornings go on Weigh-ins, with their real date.")
         self._weight_input = TextBox(type="number", placeholder="kg")
         self._weight_input.set_event_handler("pressed_enter", self._log_weight)
         latest = s.get("latest_weight_kg")
@@ -109,7 +109,11 @@ class HomeForm(HomeFormTemplate):
             card,
             Layout.field("Weight (kg)", self._weight_input,
                          hint="Last logged %s" % Format.number(latest, 1, "kg") if latest else ""),
-            Layout.button("Log weight", self._log_weight, primary=True),
+            Layout.grid(
+                "max-content max-content",
+                Layout.button("Log weight", self._log_weight, primary=True),
+                Layout.button("All weigh-ins", self._open_weights),
+            ),
         )
         return card
 
@@ -166,6 +170,9 @@ class HomeForm(HomeFormTemplate):
         self._state = anvil.server.call("bodycomp_log_weight", kg, date.today())
         Notification("Logged %s kg." % Format.number(kg, 1), style="success").show()
         self._render()
+
+    def _open_weights(self, **event_args):
+        Layout.navigate("weights")
 
     def _open_tracker(self, **event_args):
         Layout.navigate("tracker")

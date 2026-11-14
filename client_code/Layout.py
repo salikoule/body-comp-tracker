@@ -122,6 +122,7 @@ def empty_state(message, action_text="", handler=None):
 PAGE_PATHS = {
     "dashboard": "/dashboard",
     "tracker": "/tracker",
+    "weights": "/weights",
     "progress": "/progress",
     "dexa": "/dexa",
     "plan": "/plan",
