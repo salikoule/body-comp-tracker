@@ -98,6 +98,8 @@ class WeightsForm(WeightsFormTemplate):
     def __init__(self, routing_context=None, **properties):
         self.init_components(**properties)
         self._drawer = None
+        self._table = None
+        self._fit_bound = False
         self._render(anvil.server.call("bodycomp_get_plan"))
 
     def _render(self, state):
@@ -238,8 +240,59 @@ class WeightsForm(WeightsFormTemplate):
         table.columns = columns
         table.data = rows
         table.set_event_handler("cell_click", self._on_cell_click)
+        table.set_event_handler("table_built", self._fit_table)
+        self._table = table
+        self._bind_fit()
         Layout.body(card, table)
         return card
+
+    def _bind_fit(self):
+        if self._fit_bound:
+            return
+        self._fit_bound = True
+        from anvil.js.window import window
+        window.addEventListener("resize", self._fit_table)
+
+    def _fit_table(self, *args, **kwargs):
+        """Stretch the list to the bottom of the screen and page enough rows to fill it."""
+        table = self._table
+        if table is None:
+            return
+        from anvil.js import get_dom_node
+        from anvil.js.window import getComputedStyle, requestAnimationFrame
+        node = get_dom_node(table)
+        if node is None or not node.isConnected:
+            return
+        scroller = node.closest(".content")
+        limit = scroller.getBoundingClientRect().bottom if scroller else node.getBoundingClientRect().bottom
+        parent = node.closest(".anvil-role-bc-content")
+        pad = 16
+        if parent is not None:
+            try:
+                pad = int(float(getComputedStyle(parent).paddingBottom or 0))
+            except (TypeError, ValueError):
+                pad = 16
+        height = int(limit - node.getBoundingClientRect().top - pad)
+        if height < 320:
+            height = 320
+        try:
+            table.set_height(height)
+        except Exception:
+            return
+
+        def fill(*_args):
+            header = node.querySelector(".tabulator-header")
+            footer = node.querySelector(".tabulator-footer")
+            row = node.querySelector(".tabulator-row")
+            chrome = (header.offsetHeight if header else 42) + (footer.offsetHeight if footer else 48)
+            row_h = row.offsetHeight if row is not None and row.offsetHeight else 40
+            size = max(1, int((height - chrome) / row_h))
+            try:
+                table.set_page_size(size)
+            except Exception:
+                pass
+
+        requestAnimationFrame(fill)
 
     def _on_cell_click(self, cell=None, **event_args):
         cell = cell or event_args.get("cell")
